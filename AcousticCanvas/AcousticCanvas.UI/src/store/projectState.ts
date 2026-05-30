@@ -44,6 +44,13 @@ export interface AnalysisResult {
   createdAt: string;
 }
 
+export type VisibleView = 'waveform' | 'spectrogram' | 'spectrum';
+
+export interface WorkspaceState {
+  visibleViews: VisibleView[];
+  activeMarkerId: MarkerId | null;
+}
+
 export interface ProjectState {
   id: ProjectId | null;
   projectName: string;
@@ -55,7 +62,13 @@ export interface ProjectState {
   analysisResults: AnalysisResult[];
   activeFileId: AudioFileId | null;
   activeRegionId: RegionId | null;
+  workspace: WorkspaceState;
 }
+
+export const initialWorkspaceState: WorkspaceState = {
+  visibleViews: ['waveform', 'spectrogram', 'spectrum'],
+  activeMarkerId: null,
+};
 
 export const initialProjectState: ProjectState = {
   id: null,
@@ -68,4 +81,5 @@ export const initialProjectState: ProjectState = {
   analysisResults: [],
   activeFileId: null,
   activeRegionId: null,
+  workspace: initialWorkspaceState,
 };

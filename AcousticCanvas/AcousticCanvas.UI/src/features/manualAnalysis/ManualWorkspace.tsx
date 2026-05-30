@@ -1,81 +1,28 @@
 import type { JSX } from 'react';
-import { WorkspacePanel, WorkspacePanelCanvas, WorkspacePanelEmptyHint } from '../../shared/WorkspacePanel';
+import { AudioFileDropzone } from '../audioUpload/AudioFileDropzone';
+import { useAudioUpload } from '../audioUpload/useAudioUpload';
 import styles from './ManualWorkspace.module.scss';
 
-export const ManualWorkspace = (): JSX.Element => {
+interface ManualWorkspaceProps {
+  showDropzone?: boolean;
+}
+
+export const ManualWorkspace = ({ showDropzone = false }: ManualWorkspaceProps): JSX.Element => {
+  const { isUploading, uploadFile } = useAudioUpload();
+
+  if (!showDropzone) {
+    return (
+      <div className={styles.workspace}>
+        <div className={styles.emptyState}>
+          <p>Select Import from the sidebar to upload an audio file</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.workspace}>
-      <FileListPanel />
-      <MainArea />
-      <InspectorPanel />
+      <AudioFileDropzone onFileSelected={uploadFile} isUploading={isUploading} />
     </div>
-  );
-};
-
-const FileListPanel = (): JSX.Element => {
-  return (
-    <WorkspacePanel title="Files" as="aside">
-      <WorkspacePanelEmptyHint text="No files loaded" />
-    </WorkspacePanel>
-  );
-};
-
-const MainArea = (): JSX.Element => {
-  return (
-    <div className={styles.mainArea}>
-      <TransportBar />
-      <WaveformPanel />
-      <SpectrogramPanel />
-      <SpectrumPanel />
-      <MarkersPanel />
-    </div>
-  );
-};
-
-const InspectorPanel = (): JSX.Element => {
-  return (
-    <WorkspacePanel title="Inspector" as="aside">
-      <WorkspacePanelEmptyHint text="Select a region to inspect" />
-    </WorkspacePanel>
-  );
-};
-
-const TransportBar = (): JSX.Element => {
-  return (
-    <WorkspacePanel title="Transport">
-      <WorkspacePanelEmptyHint text="Playback controls — not yet implemented" />
-    </WorkspacePanel>
-  );
-};
-
-const WaveformPanel = (): JSX.Element => {
-  return (
-    <WorkspacePanel title="Waveform" as="section">
-      <WorkspacePanelCanvas />
-    </WorkspacePanel>
-  );
-};
-
-const SpectrogramPanel = (): JSX.Element => {
-  return (
-    <WorkspacePanel title="Spectrogram" as="section">
-      <WorkspacePanelCanvas />
-    </WorkspacePanel>
-  );
-};
-
-const SpectrumPanel = (): JSX.Element => {
-  return (
-    <WorkspacePanel title="Spectrum / FFT" as="section">
-      <WorkspacePanelCanvas />
-    </WorkspacePanel>
-  );
-};
-
-const MarkersPanel = (): JSX.Element => {
-  return (
-    <WorkspacePanel title="Markers" as="section">
-      <WorkspacePanelEmptyHint text="No markers" />
-    </WorkspacePanel>
   );
 };

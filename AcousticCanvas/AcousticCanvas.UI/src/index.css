@@ -1,24 +1,24 @@
 /* ─── Design Tokens ──────────────────────────────────────────────────────── */
 :root {
   /* Surface */
-  --bg-base:      #0d0e12;
-  --bg-surface:   #13151c;
-  --bg-elevated:  #1a1d27;
-  --bg-overlay:   #22263a;
+  --bg-base:      #f8f9fa;
+  --bg-surface:   #ffffff;
+  --bg-elevated:  #f1f3f5;
+  --bg-overlay:   #e9ecef;
 
   /* Border */
-  --border:       #2a2d3d;
-  --border-strong: #3d4258;
+  --border:       #dee2e6;
+  --border-strong: #ced4da;
 
   /* Text */
-  --text-primary:   #e2e4ed;
-  --text-secondary: #8b90a8;
-  --text-muted:     #555a72;
+  --text-primary:   #212529;
+  --text-secondary: #495057;
+  --text-muted:     #868e96;
 
   /* Accent — cyan/teal for waveform/analysis highlights */
-  --accent:         #00d9c8;
-  --accent-dim:     rgba(0, 217, 200, 0.15);
-  --accent-border:  rgba(0, 217, 200, 0.4);
+  --accent:         #00b8a9;
+  --accent-dim:     rgba(0, 184, 169, 0.15);
+  --accent-border:  rgba(0, 184, 169, 0.4);
 
   /* Status */
   --warn:  #f5a623;
@@ -43,11 +43,11 @@
   --radius-lg: 10px;
 
   /* Elevation shadows */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.7);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.2);
 
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 /* ─── Mantine AppShell overrides ─────────────────────────────────────────── */

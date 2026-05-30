@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "/Users/jaimecastresanaiza/AcousticCanvas/AcousticCanvas/AcousticCanvas.csproj": {}
+    "/Users/jaimecastresanaiza/Documents/GitHub/AudioAnalysisGPT/AcousticCanvas/AcousticCanvas/AcousticCanvas.csproj": {}
   },
   "projects": {
-    "/Users/jaimecastresanaiza/AcousticCanvas/AcousticCanvas/AcousticCanvas.csproj": {
+    "/Users/jaimecastresanaiza/Documents/GitHub/AudioAnalysisGPT/AcousticCanvas/AcousticCanvas/AcousticCanvas.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/Users/jaimecastresanaiza/AcousticCanvas/AcousticCanvas/AcousticCanvas.csproj",
+        "projectUniqueName": "/Users/jaimecastresanaiza/Documents/GitHub/AudioAnalysisGPT/AcousticCanvas/AcousticCanvas/AcousticCanvas.csproj",
         "projectName": "AcousticCanvas",
-        "projectPath": "/Users/jaimecastresanaiza/AcousticCanvas/AcousticCanvas/AcousticCanvas.csproj",
+        "projectPath": "/Users/jaimecastresanaiza/Documents/GitHub/AudioAnalysisGPT/AcousticCanvas/AcousticCanvas/AcousticCanvas.csproj",
         "packagesPath": "/Users/jaimecastresanaiza/.nuget/packages/",
-        "outputPath": "/Users/jaimecastresanaiza/AcousticCanvas/AcousticCanvas/obj/",
+        "outputPath": "/Users/jaimecastresanaiza/Documents/GitHub/AudioAnalysisGPT/AcousticCanvas/AcousticCanvas/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/Users/jaimecastresanaiza/.nuget/NuGet/NuGet.Config"
@@ -45,6 +45,10 @@
             "Microsoft.AspNetCore.OpenApi": {
               "target": "Package",
               "version": "[8.0.0, )"
+            },
+            "NAudio": {
+              "target": "Package",
+              "version": "[2.2.1, )"
             },
             "Swashbuckle.AspNetCore": {
               "target": "Package",

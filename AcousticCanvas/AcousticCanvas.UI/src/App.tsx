@@ -12,8 +12,8 @@ const App = (): JSX.Element => {
       <ModalsProvider>
         <Notifications position="top-right" />
         <AppLayout>
-          {(activeMode) => (
-            <ModeContentPlaceholder activeMode={activeMode} />
+          {(activeMode, currentView) => (
+            <ModeContentPlaceholder activeMode={activeMode} currentView={currentView} />
           )}
         </AppLayout>
       </ModalsProvider>

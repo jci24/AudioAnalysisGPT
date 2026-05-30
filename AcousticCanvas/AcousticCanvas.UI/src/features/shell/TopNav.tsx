@@ -8,26 +8,21 @@ interface TopNavProps {
   onModeChange: (selectedMode: ActiveMode) => void;
   projectName: string;
   projectStatus: ProjectStatus;
+  sidebarWidth?: number;
 }
 
-export const TopNav = ({ activeMode, onModeChange, projectName, projectStatus }: TopNavProps): JSX.Element => {
+export const TopNav = ({ activeMode, onModeChange, projectName, projectStatus, sidebarWidth = 200 }: TopNavProps): JSX.Element => {
   return (
-    <nav className={styles.topNav} aria-label="Main navigation">
-      <TopNavLogo />
+    <nav
+      className={styles.topNav}
+      aria-label="Main navigation"
+      style={{ marginLeft: sidebarWidth }}
+    >
       <TopNavModeSwitcher activeMode={activeMode} onModeChange={onModeChange} />
       <TopNavSpacer />
       <TopNavProjectName projectName={projectName} />
       <TopNavStatus projectStatus={projectStatus} />
     </nav>
-  );
-}
-
-const TopNavLogo = (): JSX.Element => {
-  return (
-    <div className={styles.logoArea}>
-      <img src="/logo.svg" width={28} height={28} alt="AcousticCanvas logo" />
-      <span className={styles.logoName}>AcousticCanvas</span>
-    </div>
   );
 }
 

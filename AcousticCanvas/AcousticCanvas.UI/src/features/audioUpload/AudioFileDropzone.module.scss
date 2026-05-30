@@ -1,0 +1,34 @@
+.dropzone {
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--mantine-radius-md);
+  transition: border-color 0.2s ease;
+  background-color: var(--bg-surface);
+
+  &[data-accept] {
+    border-color: var(--mantine-color-teal-6);
+    background-color: var(--mantine-color-teal-0);
+  }
+
+  &[data-reject] {
+    border-color: var(--mantine-color-red-6);
+    background-color: var(--mantine-color-red-0);
+  }
+}
+
+.icon {
+  width: 52px;
+  height: 52px;
+  color: var(--accent);
+}
+
+.iconAccept {
+  color: var(--mantine-color-teal-6);
+}
+
+.iconReject {
+  color: var(--mantine-color-red-6);
+}
+
+.textContainer {
+  text-align: center;
+}

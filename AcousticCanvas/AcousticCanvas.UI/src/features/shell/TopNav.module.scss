@@ -6,12 +6,18 @@
   padding: 0 var(--space-6);
   background-color: var(--bg-surface);
   border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
   flex-shrink: 0;
 
   .logoArea {
     display: flex;
     align-items: center;
     gap: var(--space-2);
+    color: var(--text-primary);
+
+    img {
+      color: inherit;
+    }
 
     .logoName {
       font-family: var(--font-sans);
