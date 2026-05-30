@@ -1,7 +1,8 @@
-import { MantineProvider, Title, Text } from '@mantine/core';
+import { MantineProvider } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
 import { Notifications } from '@mantine/notifications';
 import { AppLayout } from './components/AppLayout';
+import { AppLogo } from './components/AppLogo';
 import { theme } from './theme';
 
 function App() {
@@ -10,10 +11,7 @@ function App() {
       <ModalsProvider>
         <Notifications position="top-right" />
         <AppLayout>
-          <div style={{ textAlign: 'center' }}>
-            <Title order={1} mb="md">Welcome to AcousticCanvas</Title>
-            <Text size="lg" c="dimmed">Professional audio analysis workspace</Text>
-          </div>
+          <AppLogo />
         </AppLayout>
       </ModalsProvider>
     </MantineProvider>

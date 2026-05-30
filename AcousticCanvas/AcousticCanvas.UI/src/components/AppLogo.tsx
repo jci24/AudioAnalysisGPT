@@ -1,0 +1,50 @@
+export function AppLogo() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+      <AppLogoIcon />
+      <AppLogoText />
+    </div>
+  );
+}
+
+function AppLogoIcon() {
+  return (
+    <img
+      src="/logo.svg"
+      width={80}
+      height={80}
+      alt="AcousticCanvas logo icon"
+    />
+  );
+}
+
+function AppLogoText() {
+  return (
+    <div style={{ textAlign: 'center' }}>
+      <div
+        style={{
+          fontFamily: 'var(--font-sans)',
+          fontWeight: 600,
+          fontSize: '1.25rem',
+          letterSpacing: '0.04em',
+          color: 'white',
+        }}
+      >
+        AcousticCanvas
+      </div>
+      <div
+        style={{
+          fontFamily: 'var(--font-mono)',
+          fontWeight: 400,
+          fontSize: '0.65rem',
+          letterSpacing: '0.2em',
+          textTransform: 'uppercase',
+          color: 'rgba(255,255,255,0.35)',
+          marginTop: '4px',
+        }}
+      >
+        Audio Analysis
+      </div>
+    </div>
+  );
+}
