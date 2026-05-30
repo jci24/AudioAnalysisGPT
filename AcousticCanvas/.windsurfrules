@@ -23,6 +23,25 @@ This provides persistent access to Mantine component documentation, hooks, and s
 - Always use `import type { JSX } from 'react'` at the top of every `.tsx` file — never import the default React object
 - Import other React types explicitly: e.g. `import type { JSX, ReactNode } from 'react'`
 
+## Feature Folder Structure (Vertical Slice Architecture)
+
+Every feature lives in `src/features/<featureName>/` and must follow this structure:
+
+```
+src/features/<featureName>/
+  hooks/        # React hooks specific to this feature (e.g. useManualPlayback.ts)
+  services/     # API call functions for this feature (e.g. manualAnalysisService.ts)
+  utils/        # Pure helper functions for this feature (e.g. formatDuration.ts)
+  <FeatureName>.tsx          # Root component
+  <FeatureName>.module.scss  # Scoped styles
+```
+
+- `hooks/` — custom React hooks only; no JSX, no API calls
+- `services/` — functions that call backend endpoints; no React, no JSX
+- `utils/` — pure functions with no side effects; no React, no API calls
+- Never put backend logic or data transformation in components — delegate to `services/` or `utils/`
+- When creating a new feature, always scaffold all three folders (use `.gitkeep` if empty)
+
 ## Architecture: Frontend vs Backend
 
 - All logic, calculations, and data transformations belong in the backend — no exceptions

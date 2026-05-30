@@ -58,11 +58,16 @@
 
 .mantine-AppShell-root {
   background-color: var(--bg-base);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .mantine-AppShell-main {
   background-color: var(--bg-base);
-  min-height: calc(100vh - var(--app-shell-header-height));
+  flex: 1;
+  height: calc(100vh - var(--app-shell-header-height));
+  overflow: hidden;
 }
 
 .mantine-AppShell-header {

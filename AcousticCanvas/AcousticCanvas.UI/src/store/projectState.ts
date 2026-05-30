@@ -1,5 +1,8 @@
 export type ProjectStatus = 'no-project' | 'ready' | 'loading' | 'error';
 
+export type ActiveMode = 'manual' | 'agent';
+
+export type ProjectId = string;
 export type AudioFileId = string;
 export type RegionId = string;
 export type MarkerId = string;
@@ -42,8 +45,10 @@ export interface AnalysisResult {
 }
 
 export interface ProjectState {
-  projectName: string | null;
+  id: ProjectId | null;
+  projectName: string;
   status: ProjectStatus;
+  activeMode: ActiveMode;
   files: AudioFile[];
   regions: Region[];
   markers: Marker[];
@@ -53,8 +58,10 @@ export interface ProjectState {
 }
 
 export const initialProjectState: ProjectState = {
-  projectName: null,
+  id: null,
+  projectName: 'Untitled Project',
   status: 'no-project',
+  activeMode: 'manual',
   files: [],
   regions: [],
   markers: [],

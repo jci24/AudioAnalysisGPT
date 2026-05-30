@@ -1,21 +1,24 @@
+import type { JSX } from 'react';
 import { MantineProvider } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
 import { Notifications } from '@mantine/notifications';
 import { AppLayout } from './components/AppLayout';
-import { AppLogo } from './components/AppLogo';
+import { ModeContentPlaceholder } from './features/shell/ModeContentPlaceholder';
 import { theme } from './theme';
 
-function App() {
+const App = (): JSX.Element => {
   return (
     <MantineProvider theme={theme}>
       <ModalsProvider>
         <Notifications position="top-right" />
         <AppLayout>
-          <AppLogo />
+          {(activeMode) => (
+            <ModeContentPlaceholder activeMode={activeMode} />
+          )}
         </AppLayout>
       </ModalsProvider>
     </MantineProvider>
   );
-}
+};
 
 export default App;

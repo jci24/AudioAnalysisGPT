@@ -1,14 +1,12 @@
 import type { JSX } from 'react';
 import { SegmentedControl } from '@mantine/core';
 import styles from './TopNav.module.scss';
-import type { ProjectStatus } from '../../store/projectState';
-
-type ActiveMode = 'manual' | 'agent';
+import type { ActiveMode, ProjectStatus } from '../../store/projectState';
 
 interface TopNavProps {
   activeMode: ActiveMode;
   onModeChange: (selectedMode: ActiveMode) => void;
-  projectName: string | null;
+  projectName: string;
   projectStatus: ProjectStatus;
 }
 
@@ -65,19 +63,13 @@ const TopNavSpacer = (): JSX.Element => {
 }
 
 interface TopNavProjectNameProps {
-  projectName: string | null;
+  projectName: string;
 }
 
 const TopNavProjectName = ({ projectName }: TopNavProjectNameProps): JSX.Element => {
-  const displayName = projectName ?? 'Untitled Project';
-  const isPlaceholder = projectName === null;
-
   return (
-    <span
-      className={isPlaceholder ? styles.projectNamePlaceholder : styles.projectName}
-      aria-label="Project name"
-    >
-      {displayName}
+    <span className={styles.projectName} aria-label="Project name">
+      {projectName}
     </span>
   );
 }
