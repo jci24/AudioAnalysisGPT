@@ -8,6 +8,21 @@
   background-color: var(--bg-base);
 }
 
+.workspaceWithFileList {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg-base);
+}
+
+.fileListPanel {
+  padding: 16px;
+  border-right: 1px solid var(--border);
+  background-color: var(--bg-surface);
+  overflow-y: auto;
+  min-width: 240px;
+}
+
 .emptyState {
   text-align: center;
   color: var(--text-muted);
