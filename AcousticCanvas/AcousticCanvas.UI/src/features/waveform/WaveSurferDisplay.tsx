@@ -187,16 +187,6 @@ export const WaveSurferDisplay = ({
     };
   }, [isReady]);
 
-  useEffect(() => {
-    if (!displayRef) {
-      return;
-    }
-    const existingControls = displayRef.current;
-    if (existingControls) {
-      displayRef.current = { ...existingControls, clearSelection };
-    }
-  }, [displayRef, clearSelection]);
-
   const redrawAxis = useCallback(() => {
     const canvas = axisCanvasRef.current;
     if (!canvas || !waveformData) {
@@ -206,6 +196,12 @@ export const WaveSurferDisplay = ({
     canvas.height = containerHeight;
     drawFsYAxis(canvas, containerHeight, waveformData.globalMaxFs, waveformData.globalMinFs);
   }, [containerHeight, waveformData]);
+
+  // Update displayRef with clearSelection when regions are ready
+  useEffect(() => {
+    if (!displayRef?.current) return;
+    displayRef.current.clearSelection = clearSelection;
+  }, [displayRef, clearSelection]);
 
   useEffect(() => {
     redrawAxis();

@@ -39,24 +39,6 @@ const buildWaveSurferConfig = (
   url: audioUrl,
 });
 
-const buildDisplayControls = (
-  wavesurferRef: React.MutableRefObject<WaveSurfer | null>,
-): WaveSurferDisplayRef => ({
-  play: () => {
-    wavesurferRef.current?.play();
-  },
-  pause: () => {
-    wavesurferRef.current?.pause();
-  },
-  seek: (timeSeconds: number) => {
-    const duration = wavesurferRef.current?.getDuration() ?? 0;
-    if (duration > 0) {
-      wavesurferRef.current?.seekTo(timeSeconds / duration);
-    }
-  },
-  // clearSelection is a placeholder; useRegions replaces it after regions are initialized
-  clearSelection: () => {},
-});
 
 interface UseWaveSurferReturn {
   wavesurferRef: React.MutableRefObject<WaveSurfer | null>;
@@ -74,6 +56,7 @@ export const useWaveSurfer = ({
   onFinish,
 }: UseWaveSurferOptions): UseWaveSurferReturn => {
   const wavesurferRef = useRef<WaveSurfer | null>(null);
+  const appliedHeightRef = useRef<number | null>(null);
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
@@ -109,21 +92,46 @@ export const useWaveSurfer = ({
     return () => {
       wavesurfer.destroy();
       wavesurferRef.current = null;
+      appliedHeightRef.current = null;
       setIsReady(false);
     };
-  }, [containerRef, audioUrl, height, waveformData, onReady, onTimeUpdate, onFinish]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [containerRef, audioUrl, waveformData, onReady, onTimeUpdate, onFinish]);
+
+  // Update WaveSurfer height without recreating the instance when the container resizes.
+  // Keeping height out of the creation effect prevents destroy/recreate on every view switch.
+  // Skip setOptions if height has not changed — setOptions re-renders internals and can break RegionsPlugin listeners.
+  useEffect(() => {
+    const wavesurfer = wavesurferRef.current;
+    if (!wavesurfer || !isReady) {
+      return;
+    }
+    if (appliedHeightRef.current === height) {
+      return;
+    }
+    appliedHeightRef.current = height;
+    wavesurfer.setOptions({ height });
+  }, [height, isReady]);
 
   useEffect(() => {
     if (!displayRef) {
       return;
     }
 
-    displayRef.current = buildDisplayControls(wavesurferRef);
+    displayRef.current = {
+      play: () => wavesurferRef.current?.play(),
+      pause: () => wavesurferRef.current?.pause(),
+      seek: (timeSeconds: number) => {
+        const duration = wavesurferRef.current?.getDuration() ?? 0;
+        if (duration > 0) {
+          wavesurferRef.current?.seekTo(timeSeconds / duration);
+        }
+      },
+      clearSelection: () => {},
+    };
 
     return () => {
-      if (displayRef) {
-        displayRef.current = null;
-      }
+      displayRef.current = null;
     };
   }, [displayRef]);
 
