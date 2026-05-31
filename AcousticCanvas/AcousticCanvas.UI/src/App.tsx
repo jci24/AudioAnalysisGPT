@@ -12,9 +12,7 @@ const App = (): JSX.Element => {
       <ModalsProvider>
         <Notifications position="top-right" />
         <AppLayout>
-          {(activeMode, currentView) => (
-            <ModeContentPlaceholder activeMode={activeMode} currentView={currentView} />
-          )}
+          <ModeContentPlaceholder />
         </AppLayout>
       </ModalsProvider>
     </MantineProvider>

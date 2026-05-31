@@ -2,23 +2,29 @@ import type { JSX } from 'react';
 import { SegmentedControl } from '@mantine/core';
 import styles from './TopNav.module.scss';
 import type { ActiveMode, ProjectStatus } from '../../store/projectState';
+import { useAppDispatch } from '../../store/reduxHooks';
+import { setActiveMode } from '../navigation/navigationSlice';
 
 interface TopNavProps {
   activeMode: ActiveMode;
-  onModeChange: (selectedMode: ActiveMode) => void;
   projectName: string;
   projectStatus: ProjectStatus;
   sidebarWidth?: number;
 }
 
-export const TopNav = ({ activeMode, onModeChange, projectName, projectStatus, sidebarWidth = 200 }: TopNavProps): JSX.Element => {
+export const TopNav = ({ activeMode, projectName, projectStatus, sidebarWidth = 200 }: TopNavProps): JSX.Element => {
+  const dispatch = useAppDispatch();
+
+  const handleModeChange = (selectedMode: ActiveMode): void => {
+    dispatch(setActiveMode(selectedMode));
+  };
   return (
     <nav
       className={styles.topNav}
       aria-label="Main navigation"
       style={{ marginLeft: sidebarWidth }}
     >
-      <TopNavModeSwitcher activeMode={activeMode} onModeChange={onModeChange} />
+      <TopNavModeSwitcher activeMode={activeMode} onModeChange={handleModeChange} />
       <TopNavSpacer />
       <TopNavProjectName projectName={projectName} />
       <TopNavStatus projectStatus={projectStatus} />

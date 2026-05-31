@@ -1,32 +1,21 @@
-import type { JSX } from 'react';
+import type { JSX, ReactNode } from 'react';
 import { useState } from 'react';
 import { AppShell } from '@mantine/core';
 import { TopNav } from '../features/shell/TopNav';
 import { Sidebar } from './Sidebar';
-import { initialProjectState, type ProjectState, type ActiveMode } from '../store/projectState';
-
-type ViewType = 'home' | 'import';
+import { useAppSelector } from '../store/reduxHooks';
+import { activeModeSelector } from '../features/navigation/navigationSlice';
+import { projectNameSelector, projectStatusSelector } from '../features/project/projectSlice';
 
 interface AppLayoutProps {
-  children: (activeMode: ActiveMode, currentView: ViewType) => JSX.Element;
+  children: ReactNode;
 }
 
 export const AppLayout = ({ children }: AppLayoutProps): JSX.Element => {
-  const [projectState, setProjectState] = useState<ProjectState>(initialProjectState);
-  const [currentView, setCurrentView] = useState<ViewType>('home');
+  const activeMode = useAppSelector(activeModeSelector);
+  const projectName = useAppSelector(projectNameSelector);
+  const projectStatus = useAppSelector(projectStatusSelector);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-
-  const handleModeChange = (selectedMode: ActiveMode): void => {
-    setProjectState((previousState) => ({ ...previousState, activeMode: selectedMode }));
-  };
-
-  const handleHomeClick = (): void => {
-    setCurrentView('home');
-  };
-
-  const handleImportClick = (): void => {
-    setCurrentView('import');
-  };
 
   const handleToggleSidebar = (): void => {
     setIsSidebarCollapsed((previous) => !previous);
@@ -58,23 +47,20 @@ export const AppLayout = ({ children }: AppLayoutProps): JSX.Element => {
     >
       <AppShell.Header>
         <TopNav
-          activeMode={projectState.activeMode}
-          onModeChange={handleModeChange}
-          projectName={projectState.projectName}
-          projectStatus={projectState.status}
+          activeMode={activeMode}
+          projectName={projectName}
+          projectStatus={projectStatus}
           sidebarWidth={sidebarWidth}
         />
       </AppShell.Header>
       <AppShell.Navbar>
         <Sidebar
-          onHomeClick={handleHomeClick}
-          onImportClick={handleImportClick}
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={handleToggleSidebar}
         />
       </AppShell.Navbar>
       <AppShell.Main>
-        {children(projectState.activeMode, currentView)}
+        {children}
       </AppShell.Main>
     </AppShell>
   );

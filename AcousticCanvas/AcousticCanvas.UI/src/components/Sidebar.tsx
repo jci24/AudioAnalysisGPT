@@ -1,20 +1,30 @@
 import type { JSX } from 'react';
 import { IconHome, IconUpload, IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import styles from './Sidebar.module.scss';
+import { useAppSelector, useAppDispatch } from '../store/reduxHooks';
+import { setActiveView } from '../features/navigation/navigationSlice';
 
 interface SidebarProps {
-  onHomeClick?: () => void;
-  onImportClick?: () => void;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
 }
 
 export const Sidebar = ({
-  onHomeClick,
-  onImportClick,
   isCollapsed = false,
   onToggleCollapse,
 }: SidebarProps): JSX.Element => {
+  const dispatch = useAppDispatch();
+  const activeView = useAppSelector((state) => state.navigation.activeView);
+
+  const handleHomeClick = (): void => {
+    console.log('Home clicked, dispatching setActiveView(home)');
+    dispatch(setActiveView('home'));
+  };
+
+  const handleImportClick = (): void => {
+    dispatch(setActiveView('import'));
+  };
+
   return (
     <nav
       className={`${styles.sidebar} ${isCollapsed ? styles.collapsed : ''}`}
@@ -57,8 +67,8 @@ export const Sidebar = ({
         <ul className={styles.menuList}>
           <li>
             <button
-              className={styles.menuItem}
-              onClick={onHomeClick}
+              className={`${styles.menuItem} ${activeView === 'home' ? styles.active : ''}`}
+              onClick={handleHomeClick}
               type="button"
               title="Home"
             >
@@ -72,8 +82,8 @@ export const Sidebar = ({
           </li>
           <li>
             <button
-              className={styles.menuItem}
-              onClick={onImportClick}
+              className={`${styles.menuItem} ${activeView === 'import' ? styles.active : ''}`}
+              onClick={handleImportClick}
               type="button"
               title="Import"
             >

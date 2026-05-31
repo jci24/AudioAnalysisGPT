@@ -7,6 +7,8 @@ import { TransportUI } from '../playback/TransportUI';
 import { WaveformChart } from '../playback/WaveformChart';
 import { apiClient } from '../../shared/api/apiClient';
 import { API_ENDPOINTS } from '../../shared/api/apiEndpoints';
+import { useAppSelector, useAppDispatch } from '../../store/reduxHooks';
+import { projectFilesSelector, removeAudioFile } from '../project/projectSlice';
 import { Text, Stack, Badge, Card, Group } from '@mantine/core';
 import { IconFileMusic } from '@tabler/icons-react';
 import styles from './ManualWorkspace.module.scss';
@@ -16,7 +18,11 @@ interface ManualWorkspaceProps {
 }
 
 export const ManualWorkspace = ({ showDropzone = false }: ManualWorkspaceProps): JSX.Element => {
-  const { isUploading, uploadedFile, waveformBins, uploadFile, clearUploadedFile } = useAudioUpload();
+  const dispatch = useAppDispatch();
+  const files = useAppSelector(projectFilesSelector);
+  const uploadedFile = files.length > 0 ? files[0] : null;
+  const waveformBins = uploadedFile?.waveformBins ?? [];
+  const { isUploading, uploadFile } = useAudioUpload();
   const {
     isPlaying,
     currentTime,
@@ -38,29 +44,33 @@ export const ManualWorkspace = ({ showDropzone = false }: ManualWorkspaceProps):
 
   const handleClearFile = (): void => {
     unloadFile();
-    clearUploadedFile();
+    if (uploadedFile) {
+      dispatch(removeAudioFile(uploadedFile.id));
+    }
   };
 
-  const shouldShowEmptyState = !uploadedFile && !showDropzone;
-  const shouldShowDropzone = !uploadedFile && showDropzone;
+  // Home view: always show welcome placeholder
+  // Import view: show dropzone if no file, show file content if uploaded
+  const isHomeView = !showDropzone;
+  const shouldShowFileContent = uploadedFile && showDropzone;
 
   return (
     <div className={styles.workspaceWithFileList}>
-      {shouldShowEmptyState && (
+      {isHomeView && (
         <div className={styles.workspace}>
           <div className={styles.emptyState}>
-            <p>Select Import from the sidebar to upload an audio file</p>
+            <p>Welcome to SoundLens</p>
           </div>
         </div>
       )}
 
-      {shouldShowDropzone && (
+      {showDropzone && !uploadedFile && (
         <div className={styles.workspace}>
           <AudioFileDropzone onFileSelected={uploadFile} isUploading={isUploading} />
         </div>
       )}
 
-      {uploadedFile && (
+      {shouldShowFileContent && (
         <div className={styles.mainArea}>
           <WaveformChart
             waveformBins={waveformBins}

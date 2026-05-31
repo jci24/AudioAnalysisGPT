@@ -1,18 +1,15 @@
 import type { JSX } from 'react';
 import { ManualWorkspace } from '../manualAnalysis/ManualWorkspace';
 import { AgentWorkspace } from '../agentAnalysis/AgentWorkspace';
+import { useAppSelector } from '../../store/reduxHooks';
+import { activeModeSelector, activeViewSelector } from '../navigation/navigationSlice';
 
-type ActiveMode = 'manual' | 'agent';
-type ViewType = 'home' | 'import';
+export const ModeContentPlaceholder = (): JSX.Element => {
+  const activeMode = useAppSelector(activeModeSelector);
+  const activeView = useAppSelector(activeViewSelector);
 
-interface ModeContentPlaceholderProps {
-  activeMode: ActiveMode;
-  currentView: ViewType;
-}
-
-export const ModeContentPlaceholder = ({ activeMode, currentView }: ModeContentPlaceholderProps): JSX.Element => {
   if (activeMode === 'manual') {
-    return <ManualWorkspace showDropzone={currentView === 'import'} />;
+    return <ManualWorkspace showDropzone={activeView === 'import'} />;
   }
 
   return <AgentWorkspace />;

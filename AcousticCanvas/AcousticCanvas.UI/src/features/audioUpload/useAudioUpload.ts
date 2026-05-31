@@ -2,22 +2,20 @@ import { useState, useCallback } from 'react';
 import { notifications } from '@mantine/notifications';
 import { apiClient, ApiError, HttpMethod } from '../../shared/api/apiClient';
 import { API_ENDPOINTS } from '../../shared/api/apiEndpoints';
-import type { AudioFileResponse, WaveformBin } from './audioUploadApi';
+import { useAppDispatch } from '../../store/reduxHooks';
+import { addAudioFile } from '../project/projectSlice';
+import type { AudioFileResponse } from './audioUploadApi';
 
 interface UseAudioUploadReturn {
   isUploading: boolean;
-  uploadedFile: AudioFileResponse | null;
-  waveformBins: WaveformBin[];
-  uploadFile: (file: File) => Promise<void>;
-  clearUploadedFile: () => void;
+  uploadFile: (file: File) => Promise<AudioFileResponse | null>;
 }
 
 export const useAudioUpload = (): UseAudioUploadReturn => {
+  const dispatch = useAppDispatch();
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState<AudioFileResponse | null>(null);
-  const [waveformBins, setWaveformBins] = useState<WaveformBin[]>([]);
 
-  const uploadFile = useCallback(async (file: File): Promise<void> => {
+  const uploadFile = useCallback(async (file: File): Promise<AudioFileResponse | null> => {
     setIsUploading(true);
 
     try {
@@ -32,14 +30,25 @@ export const useAudioUpload = (): UseAudioUploadReturn => {
         },
       );
 
-      setUploadedFile(data);
-      setWaveformBins(data.waveformBins);
+      // Dispatch to Redux store for persistence across navigation
+      dispatch(addAudioFile({
+        id: data.id,
+        name: data.name,
+        durationSeconds: data.durationSeconds,
+        sampleRate: data.sampleRate,
+        channels: data.channels,
+        bitDepth: data.bitDepth,
+        fileSizeBytes: 0,
+        waveformBins: data.waveformBins,
+      }));
 
       notifications.show({
         title: 'Upload successful',
         message: `Loaded "${data.name}" (${data.durationSeconds.toFixed(2)}s, ${data.sampleRate}Hz)`,
         color: 'teal',
       });
+
+      return data;
     } catch (error) {
       const errorMessage = error instanceof ApiError
         ? `${error.status}: ${error.statusText}`
@@ -51,22 +60,14 @@ export const useAudioUpload = (): UseAudioUploadReturn => {
         message: errorMessage,
         color: 'red',
       });
-      throw error;
+      return null;
     } finally {
       setIsUploading(false);
     }
-  }, []);
-
-  const clearUploadedFile = useCallback((): void => {
-    setUploadedFile(null);
-    setWaveformBins([]);
-  }, []);
+  }, [dispatch]);
 
   return {
     isUploading,
-    uploadedFile,
-    waveformBins,
     uploadFile,
-    clearUploadedFile,
   };
 };
