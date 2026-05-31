@@ -8,12 +8,14 @@ export interface IProjectState {
   projectName: string;
   status: ProjectStatus;
   files: AudioFile[];
+  selectedSignalId: string | null;
 }
 
 const initialState: IProjectState = {
   projectName: 'Untitled Project',
   status: 'no-project',
   files: [],
+  selectedSignalId: null,
 };
 
 const projectSlice = createSlice({
@@ -31,13 +33,20 @@ const projectSlice = createSlice({
       if (!exists) {
         state.files.push(action.payload);
         state.status = 'ready';
+        state.selectedSignalId = action.payload.id;
       }
     },
     removeAudioFile: (state, action: PayloadAction<AudioFileId>) => {
       state.files = state.files.filter((file) => file.id !== action.payload);
+      if (state.selectedSignalId === action.payload) {
+        state.selectedSignalId = state.files[0]?.id ?? null;
+      }
       if (state.files.length === 0) {
         state.status = 'no-project';
       }
+    },
+    setSelectedSignal: (state, action: PayloadAction<string>) => {
+      state.selectedSignalId = action.payload;
     },
     clearProject: () => initialState,
   },
@@ -48,6 +57,7 @@ export const {
   setStatus,
   addAudioFile,
   removeAudioFile,
+  setSelectedSignal,
   clearProject,
 } = projectSlice.actions;
 
@@ -61,6 +71,9 @@ export const projectStatusSelector = (state: { project: IProjectState }): Projec
 
 export const projectFilesSelector = (state: { project: IProjectState }): AudioFile[] =>
   state.project.files;
+
+export const selectedSignalIdSelector = (state: { project: IProjectState }): string | null =>
+  state.project.selectedSignalId;
 
 export const activeFileSelector = (
   state: { project: IProjectState; navigation: { activeFileId: AudioFileId | null } },

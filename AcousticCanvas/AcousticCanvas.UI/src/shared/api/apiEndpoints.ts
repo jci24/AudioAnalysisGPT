@@ -5,6 +5,7 @@ export const API_ENDPOINTS = {
     GET_STATE: (fileId: string) => `api/audio/playback/state/${fileId}`,
     GET_FILE: (fileId: string) => `api/audio/file/${fileId}`,
     GET_WAVEFORM: (fileId: string, points: number) => `api/waveform?fileId=${fileId}&points=${points}`,
+    RUN_ANALYSIS: (fileId: string) => `api/analysis?fileId=${fileId}`,
   },
 } as const;
 

@@ -1,4 +1,7 @@
 using FastEndpoints;
+using AcousticCanvas.Features.Analysis.Handlers;
+using AcousticCanvas.Features.Analysis.Importers;
+using AcousticCanvas.Features.Analysis.Services;
 using AcousticCanvas.Features.AudioUpload.Handlers;
 using AcousticCanvas.Features.Playback.Handlers;
 using AcousticCanvas.Features.Playback.Services;
@@ -7,6 +10,9 @@ using AcousticCanvas.Features.Waveform.Handlers;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddFastEndpoints();
 builder.Services.AddSingleton<UploadAudioHandler>();
+builder.Services.AddSingleton<SignalAnalysisService>(_ =>
+    new SignalAnalysisService(new List<ISignalFileImporter> { new WavSignalFileImporter() }));
+builder.Services.AddSingleton<RunAnalysisHandler>();
 builder.Services.AddSingleton<GetWaveformHandler>();
 builder.Services.AddSingleton<PlaybackStateStore>();
 builder.Services.AddSingleton<PlaybackControlHandler>();

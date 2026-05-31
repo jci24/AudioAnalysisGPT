@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("AcousticCanvas")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d3e577c97591a48e1452d36d33d007e8f531bea4")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+bf129f6eb084c0976fa3b3efc19272acd033ea9e")]
 [assembly: System.Reflection.AssemblyProductAttribute("AcousticCanvas")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AcousticCanvas")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

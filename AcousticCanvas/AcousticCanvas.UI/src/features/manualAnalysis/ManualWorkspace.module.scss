@@ -16,6 +16,15 @@
   background-color: var(--bg-base);
 }
 
+// Row that holds mainArea + inspector side by side
+.contentRow {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
 // The left content area: fills all horizontal space, scrollable vertically
 .mainArea {
   display: flex;
@@ -45,6 +54,21 @@
   overflow: hidden;
   box-shadow: var(--shadow-sm);
   flex-shrink: 0;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+
+  &:hover {
+    border-color: rgba(0, 184, 169, 0.4);
+  }
+}
+
+.signalCardSelected {
+  border-color: #00b8a9;
+  border-left-width: 3px;
+
+  &:hover {
+    border-color: #00b8a9;
+  }
 }
 
 .signalCardHeader {

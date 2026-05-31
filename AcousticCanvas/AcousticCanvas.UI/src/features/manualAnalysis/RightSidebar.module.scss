@@ -1,0 +1,98 @@
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  background-color: var(--bg-surface);
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.08);
+  transition: width 0.2s ease;
+  overflow: hidden;
+  width: 240px;
+
+  &.collapsed {
+    width: 32px;
+    align-items: center;
+    padding-top: 12px;
+  }
+}
+
+// Single chevron shown in collapsed state
+.toggleButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    background-color: var(--bg-elevated);
+    color: var(--text-primary);
+  }
+}
+
+// Full panel when expanded
+.panel {
+  display: flex;
+  flex-direction: column;
+  width: 240px;
+  height: 100%;
+  overflow: hidden;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background-color: var(--bg-elevated);
+  flex-shrink: 0;
+}
+
+.panelHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.panelTitleGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.panelTitle {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.panelSubtitle {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.7;
+}
+
+.panelContent {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}

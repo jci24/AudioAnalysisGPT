@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { AudioFileDropzone } from '../audioUpload/AudioFileDropzone';
 import { useAudioUpload } from '../audioUpload/useAudioUpload';
 import { TransportUI } from '../playback/TransportUI';
@@ -8,7 +8,12 @@ import type { WaveSurferDisplayRef } from '../waveform/WaveSurferDisplay';
 import { apiClient } from '../../shared/api/apiClient';
 import { API_ENDPOINTS } from '../../shared/api/apiEndpoints';
 import { useAppSelector, useAppDispatch } from '../../store/reduxHooks';
-import { projectFilesSelector, removeAudioFile } from '../project/projectSlice';
+import {
+  projectFilesSelector,
+  removeAudioFile,
+  setSelectedSignal,
+  selectedSignalIdSelector,
+} from '../project/projectSlice';
 import {
   setLoopEnabled,
   loopEnabledSelector,
@@ -16,6 +21,14 @@ import {
 } from '../waveform/waveformSelectionSlice';
 import { Text, Stack, Badge, Card, Group, ActionIcon, Tooltip } from '@mantine/core';
 import { IconRepeat, IconX, IconFileMusic } from '@tabler/icons-react';
+import { RightSidebar } from './RightSidebar';
+import { useRunAnalysis } from '../analysis/useRunAnalysis';
+import {
+  analysisResultSelector,
+  analysisStatusSelector,
+  analysisErrorSelector,
+  analysisClear,
+} from '../analysis/analysisSlice';
 import styles from './ManualWorkspace.module.scss';
 
 interface ManualWorkspaceProps {
@@ -29,6 +42,11 @@ export const ManualWorkspace = ({ showDropzone = false }: ManualWorkspaceProps):
   const { isUploading, uploadFile } = useAudioUpload();
   const loopEnabled = useAppSelector(loopEnabledSelector);
   const activeSelection = useAppSelector(activeSelectionSelector);
+  const analysisResult = useAppSelector(analysisResultSelector);
+  const analysisStatus = useAppSelector(analysisStatusSelector);
+  const analysisError = useAppSelector(analysisErrorSelector);
+  const selectedSignalId = useAppSelector(selectedSignalIdSelector);
+  const { runAnalysis } = useRunAnalysis();
 
   const waveSurferRef = useRef<WaveSurferDisplayRef | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -68,12 +86,24 @@ export const ManualWorkspace = ({ showDropzone = false }: ManualWorkspaceProps):
     setCurrentTime(timeSeconds);
   };
 
+  // Auto-run analysis whenever the selected signal changes.
+  useEffect(() => {
+    if (selectedSignalId) {
+      runAnalysis(selectedSignalId);
+    }
+  }, [selectedSignalId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSelectSignal = (fileId: string): void => {
+    dispatch(setSelectedSignal(fileId));
+  };
+
   const handleClearFile = (): void => {
     waveSurferRef.current?.pause();
     waveSurferRef.current?.clearSelection();
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
+    dispatch(analysisClear());
     if (uploadedFile) {
       dispatch(removeAudioFile(uploadedFile.id));
     }
@@ -114,9 +144,16 @@ export const ManualWorkspace = ({ showDropzone = false }: ManualWorkspaceProps):
             uploadedFile={uploadedFile}
             onClearFile={handleClearFile}
           />
+          <div className={styles.contentRow}>
           <div className={styles.mainArea}>
             <div className={styles.signalViewport}>
-              <div className={styles.signalCard}>
+              <div
+                className={`${styles.signalCard} ${selectedSignalId === uploadedFile.id ? styles.signalCardSelected : ''}`}
+                onClick={() => handleSelectSignal(uploadedFile.id)}
+              >
+                <div className={styles.signalCardHeader}>
+                  <span className={styles.signalCardLabel}>{uploadedFile.name}</span>
+                </div>
                 <div className={styles.signalCardBody}>
                   <WaveSurferDisplay
                     fileId={uploadedFile.id}
@@ -169,6 +206,13 @@ export const ManualWorkspace = ({ showDropzone = false }: ManualWorkspaceProps):
                 }
               />
             </div>
+          </div>
+          <RightSidebar
+            analysisResult={analysisResult}
+            analysisStatus={analysisStatus}
+            analysisError={analysisError}
+            selectedFileName={files.find((f) => f.id === selectedSignalId)?.name ?? null}
+          />
           </div>
         </>
       )}
