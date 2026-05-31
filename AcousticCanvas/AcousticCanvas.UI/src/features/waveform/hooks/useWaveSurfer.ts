@@ -98,9 +98,6 @@ export const useWaveSurfer = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [containerRef, audioUrl, waveformData, onReady, onTimeUpdate, onFinish]);
 
-  // Update WaveSurfer height without recreating the instance when the container resizes.
-  // Keeping height out of the creation effect prevents destroy/recreate on every view switch.
-  // Skip setOptions if height has not changed — setOptions re-renders internals and can break RegionsPlugin listeners.
   useEffect(() => {
     const wavesurfer = wavesurferRef.current;
     if (!wavesurfer || !isReady) {
