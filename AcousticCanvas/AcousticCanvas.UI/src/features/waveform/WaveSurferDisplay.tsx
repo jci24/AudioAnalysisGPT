@@ -1,9 +1,7 @@
 import type { JSX } from 'react';
-import { useRef, useEffect, useState, useCallback } from 'react';
-import WaveSurfer from 'wavesurfer.js';
-import { apiClient } from '../../shared/api/apiClient';
-import { API_ENDPOINTS } from '../../shared/api/apiEndpoints';
-import type { WaveformResponse } from '../audioUpload/audioUploadApi';
+import { useRef, useEffect, useCallback } from 'react';
+import { useWaveformData } from './hooks/useWaveformData';
+import { useWaveSurfer } from './hooks/useWaveSurfer';
 
 // Y-axis layout constants
 const Y_AXIS_WIDTH = 72;
@@ -11,9 +9,6 @@ const FONT_SIZE = 10;
 const FONT_FAMILY = "'JetBrains Mono', ui-monospace, Consolas, monospace";
 
 // App color tokens
-const WAVEFORM_COLOR = '#00b8a9';
-const WAVEFORM_PROGRESS_COLOR = '#007a70';
-const CURSOR_COLOR = '#e05252';
 const BACKGROUND_COLOR = '#ffffff';
 const AXIS_LINE_COLOR = 'rgba(0,0,0,0.15)';
 const LABEL_COLOR = 'rgba(0,0,0,0.5)';
@@ -125,35 +120,20 @@ export const WaveSurferDisplay = ({
 }: WaveSurferDisplayProps): JSX.Element => {
   const waveContainerRef = useRef<HTMLDivElement>(null);
   const axisCanvasRef = useRef<HTMLCanvasElement>(null);
-  const wavesurferRef = useRef<WaveSurfer | null>(null);
-  const [waveformData, setWaveformData] = useState<WaveformResponse | null>(null);
 
-  // Fetch precomputed FS peaks from the backend
-  useEffect(() => {
-    if (!fileId) {
-      return;
-    }
+  const waveformData = useWaveformData(fileId);
 
-    let cancelled = false;
+  useWaveSurfer({
+    containerRef: waveContainerRef,
+    audioUrl,
+    height,
+    waveformData,
+    displayRef,
+    onReady,
+    onTimeUpdate,
+    onFinish,
+  });
 
-    apiClient
-      .requestJson<WaveformResponse>(API_ENDPOINTS.AUDIO.GET_WAVEFORM(fileId, 1000))
-      .then((data) => {
-        if (!cancelled) {
-          setWaveformData(data);
-        }
-      })
-      .catch(() => {
-        // Waveform fetch failed — WaveSurfer will decode audio directly as fallback
-      });
-
-    return () => {
-      cancelled = true;
-      setWaveformData(null);
-    };
-  }, [fileId]);
-
-  // Redraw the canvas y-axis whenever waveform data or height changes
   const redrawAxis = useCallback(() => {
     const canvas = axisCanvasRef.current;
     if (!canvas || !waveformData) {
@@ -167,85 +147,6 @@ export const WaveSurferDisplay = ({
   useEffect(() => {
     redrawAxis();
   }, [redrawAxis]);
-
-  // Create WaveSurfer instance when waveform data is ready
-  useEffect(() => {
-    const container = waveContainerRef.current;
-    if (!container || !audioUrl || !waveformData) {
-      return;
-    }
-
-    if (wavesurferRef.current) {
-      wavesurferRef.current.destroy();
-      wavesurferRef.current = null;
-    }
-
-    // Pass precomputed peaks so WaveSurfer skips audio decoding for rendering.
-    // normalize: false preserves the real FS amplitude values.
-    // Peaks format: one channel array [min0, max0, min1, max1, ...]
-    const wavesurfer = WaveSurfer.create({
-      container,
-      height,
-      waveColor: WAVEFORM_COLOR,
-      progressColor: WAVEFORM_PROGRESS_COLOR,
-      cursorColor: CURSOR_COLOR,
-      cursorWidth: 2,
-      barWidth: 2,
-      barGap: 1,
-      barRadius: 2,
-      normalize: false,
-      peaks: [waveformData.peaks],
-      duration: waveformData.durationSeconds,
-      url: audioUrl,
-    });
-
-    wavesurferRef.current = wavesurfer;
-
-    wavesurfer.on('ready', () => {
-      onReady?.(waveformData.durationSeconds);
-    });
-
-    wavesurfer.on('timeupdate', (time: number) => {
-      onTimeUpdate?.(time);
-    });
-
-    wavesurfer.on('finish', () => {
-      onFinish?.();
-    });
-
-    return () => {
-      wavesurfer.destroy();
-      wavesurferRef.current = null;
-    };
-  }, [audioUrl, height, waveformData, onReady, onTimeUpdate, onFinish]);
-
-  // Expose play/pause/seek controls via ref
-  useEffect(() => {
-    if (!displayRef) {
-      return;
-    }
-
-    displayRef.current = {
-      play: () => {
-        wavesurferRef.current?.play();
-      },
-      pause: () => {
-        wavesurferRef.current?.pause();
-      },
-      seek: (timeSeconds: number) => {
-        const duration = wavesurferRef.current?.getDuration() ?? 0;
-        if (duration > 0) {
-          wavesurferRef.current?.seekTo(timeSeconds / duration);
-        }
-      },
-    };
-
-    return () => {
-      if (displayRef) {
-        displayRef.current = null;
-      }
-    };
-  }, [displayRef]);
 
   return (
     <div
