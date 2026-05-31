@@ -1,12 +1,11 @@
 using FastEndpoints;
 using AcousticCanvas.Features.AudioUpload.Handlers;
-using AcousticCanvas.Features.Waveform.Models;
-using AcousticCanvas.Features.Waveform.Services;
+using AcousticCanvas.Features.Waveform.Commands;
 
 namespace AcousticCanvas.Features.Waveform.Endpoints;
 
-public class GetWaveformEndpoint(UploadAudioHandler uploadAudioHandler, WaveformAnalyzer waveformAnalyzer)
-    : Endpoint<GetWaveformRequest, WaveformResponse>
+public class GetWaveformEndpoint(UploadAudioHandler uploadAudioHandler)
+    : Endpoint<GetWaveformRequest, WaveformResult>
 {
     public override void Configure()
     {
@@ -32,15 +31,8 @@ public class GetWaveformEndpoint(UploadAudioHandler uploadAudioHandler, Waveform
             return;
         }
 
-        try
-        {
-            var waveformResponse = waveformAnalyzer.AnalyzeWav(filePath, resolvedPoints);
-            Response = waveformResponse;
-        }
-        catch (Exception ex)
-        {
-            ThrowError($"Failed to analyze waveform: {ex.Message}");
-        }
+        var query = new GetWaveformQuery(FilePath: filePath, Points: resolvedPoints);
+        Response = await query.ExecuteAsync(cancellationToken);
     }
 }
 

@@ -49,3 +49,29 @@ src/features/<featureName>/
 - No DSP, audio math, signal processing, or analysis of any kind in the frontend
 - No business rules or domain decisions in the frontend
 - Frontend responsibilities: display state, handle user input, call backend endpoints, render results
+
+## Backend Feature Structure (Vertical Slice Architecture)
+
+Every backend feature lives in `Features/<FeatureName>/` and must follow this exact structure:
+
+```
+Features/<FeatureName>/
+  Commands/   — ICommand records (query/command input) and result records
+  Handlers/   — CommandHandler<TCommand, TResult> implementations
+  Endpoints/  — FastEndpoints Endpoint<TRequest, TResponse> classes
+```
+
+- `Commands/` — immutable `record` types only; one file per feature grouping command + result together
+- `Handlers/` — one handler class per command; contains all business logic; no side effects on shared state
+- `Endpoints/` — thin HTTP adapters only; validate input, resolve file paths, delegate to handler via `query.ExecuteAsync()`; no business logic
+- Never use `Models/` or `Services/` folders — all types live in `Commands/`, all logic lives in `Handlers/`
+- Register handlers as singletons in `Program.cs`
+
+## Functional Programming Principles (Backend)
+
+- Prefer immutable data: use `record` types for all commands, queries, and results — never mutable classes
+- Handlers must be pure: given the same input, always produce the same output; no writes to shared mutable state
+- No side effects in handlers: file I/O is acceptable (reading audio files is idempotent), but never mutate in-memory state or static fields
+- Prefer returning new values over modifying existing ones
+- Use `Task.FromResult(value)` for synchronous handlers — never `async` unless genuinely async I/O is needed
+- Keep loops simple and explicit — no LINQ chains longer than two operations; prefer named variables over chained lambdas
