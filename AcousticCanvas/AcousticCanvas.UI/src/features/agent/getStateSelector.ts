@@ -52,6 +52,15 @@ export function getStateSelector(state: RootState): GetStateResult {
   const activeFile = buildActiveFile(state);
   const activeSelection = buildActiveSelection(state);
 
+  const loadedFiles = state.project.files.map((file) => ({
+    id: file.id,
+    name: file.name,
+    durationSeconds: file.durationSeconds,
+    sampleRate: file.sampleRate,
+    channels: file.channels,
+    bitDepth: file.bitDepth,
+  }));
+
   const hasWaveform = activeFile !== null;
   const visibleViews: GetStateResult['visibleViews'] = [];
   if (hasWaveform) {
@@ -61,6 +70,7 @@ export function getStateSelector(state: RootState): GetStateResult {
   return {
     projectName: state.project.projectName,
     projectStatus: state.project.status,
+    loadedFiles,
     activeFile,
     activeSelection,
     visibleViews,

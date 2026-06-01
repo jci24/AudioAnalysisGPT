@@ -41,6 +41,13 @@ const emptyState: RootState = {
     selectedChannelId: null,
     userParameters: { fftSize: 1024, overlap: 0.75, scale: 'linear', rangeDb: 80, gainDb: 0 },
   },
+  chat: {
+    messages: [],
+    isThinking: false,
+  },
+  agentWorkspace: {
+    artifacts: [],
+  },
 };
 
 const stateWithFile: RootState = {

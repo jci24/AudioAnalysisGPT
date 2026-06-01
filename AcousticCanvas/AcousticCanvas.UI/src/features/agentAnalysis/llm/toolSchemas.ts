@@ -95,8 +95,37 @@ export const WORKSPACE_TOOL_SCHEMA: OpenAiToolSchema = {
   },
 };
 
+export const COMPARE_TOOL_SCHEMA: OpenAiToolSchema = {
+  type: 'function',
+  function: {
+    name: 'compare',
+    description: 'Compares two or more loaded files side-by-side. Returns level (peak, RMS, crest factor) and spectrum (peak frequency) for each file, plus all pairwise numeric diffs. Use when the user asks to compare files or asks which is louder/brighter/etc.',
+    parameters: {
+      type: 'object',
+      properties: {
+        fileIds: {
+          type: 'array',
+          items: { type: 'string' },
+          minItems: 2,
+          description: 'IDs of the files to compare (minimum 2). Obtained from getState() loadedFiles.',
+        },
+        startSeconds: {
+          type: 'number',
+          description: 'Start of the region to compare in seconds. Omit to compare full files.',
+        },
+        endSeconds: {
+          type: 'number',
+          description: 'End of the region to compare in seconds. Omit to compare full files.',
+        },
+      },
+      required: ['fileIds'],
+    },
+  },
+};
+
 export const ALL_TOOL_SCHEMAS: OpenAiToolSchema[] = [
   GET_STATE_TOOL_SCHEMA,
   ANALYZE_TOOL_SCHEMA,
+  COMPARE_TOOL_SCHEMA,
   WORKSPACE_TOOL_SCHEMA,
 ];

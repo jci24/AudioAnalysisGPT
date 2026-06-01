@@ -52,6 +52,7 @@ export type CapabilityRegistry = {
 export type GetStateResult = {
   projectName: string;
   projectStatus: 'no-project' | 'loading' | 'ready' | 'error';
+  loadedFiles: GetStateActiveFile[];
   activeFile: GetStateActiveFile | null;
   activeSelection: GetStateActiveSelection | null;
   visibleViews: GetStateVisibleView[];
@@ -121,5 +122,38 @@ export type AgentAnalysisResult = {
   regionStart: number | null;
   regionEnd: number | null;
   summary: Record<string, unknown>;
+  ranAt: string;
+};
+
+export type CompareInput = {
+  fileIds: string[];
+  startSeconds: number | null;
+  endSeconds: number | null;
+};
+
+export type CompareFileSummary = {
+  fileId: string;
+  fileName: string;
+  peakDb: number;
+  rmsDb: number;
+  crestFactorDb: number;
+  peakFrequencyHz: number;
+  peakFrequencyMagnitudeDb: number;
+  regionStartSeconds: number;
+  regionEndSeconds: number;
+};
+
+export type PairwiseDiff = {
+  fileIdA: string;
+  fileIdB: string;
+  peakDeltaDb: number;
+  rmsDeltaDb: number;
+  crestFactorDeltaDb: number;
+  peakFrequencyDeltaHz: number;
+};
+
+export type CompareResult = {
+  files: CompareFileSummary[];
+  pairwiseDiffs: PairwiseDiff[];
   ranAt: string;
 };

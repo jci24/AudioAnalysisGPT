@@ -18,6 +18,7 @@ builder.Services.AddSingleton<RunAgentAnalysisHandler>();
 builder.Services.AddSingleton<RunSpectrumHandler>();
 builder.Services.AddSingleton<SpectrogramCacheStore>();
 builder.Services.AddSingleton<RunSpectrogramHandler>();
+builder.Services.AddSingleton<RunCompareHandler>();
 builder.Services.AddSingleton<GetWaveformHandler>();
 builder.Services.AddSingleton<PlaybackStateStore>();
 builder.Services.AddSingleton<PlaybackControlHandler>();

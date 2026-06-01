@@ -2,6 +2,7 @@ import type { AppDispatch, RootState } from '../../../store/reduxStore';
 import type { OpenAiToolCall } from './openAiClient';
 import { getStateTool } from '../../agent/utils/getStateTool';
 import { callAnalyzeTool } from '../../agent/services/analyzeToolService';
+import { callCompareTool } from '../../agent/services/compareToolService';
 import { applyWorkspaceAction } from '../../agent/utils/workspaceTool';
 import type { AnalysisKind, WorkspaceAction } from '../../agent/agentToolTypes';
 import { analysisArtifactAdded, markerArtifactAdded, selectionArtifactAdded } from '../agentWorkspaceSlice';
@@ -17,6 +18,7 @@ function executeGetState(state: RootState): string {
   const safeResult = {
     projectName: result.projectName,
     projectStatus: result.projectStatus,
+    loadedFiles: result.loadedFiles,
     activeFile: result.activeFile,
     activeSelection: result.activeSelection,
     visibleViews: result.visibleViews,
@@ -142,10 +144,21 @@ export async function executeToolCall(
       const errorMessage = error instanceof Error ? error.message : 'Analysis failed';
       resultJson = JSON.stringify({ error: errorMessage });
     }
+  } else if (toolName === 'compare') {
+    try {
+      const fileIds = Array.isArray(parsedArgs['fileIds']) ? parsedArgs['fileIds'] as string[] : [];
+      const startSeconds = typeof parsedArgs['startSeconds'] === 'number' ? parsedArgs['startSeconds'] : null;
+      const endSeconds = typeof parsedArgs['endSeconds'] === 'number' ? parsedArgs['endSeconds'] : null;
+      const compareResult = await callCompareTool({ fileIds, startSeconds, endSeconds });
+      resultJson = JSON.stringify(compareResult);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Compare failed';
+      resultJson = JSON.stringify({ error: errorMessage });
+    }
   } else if (toolName === 'workspace') {
     resultJson = executeWorkspace(dispatch, parsedArgs);
   } else {
-    resultJson = JSON.stringify({ error: `Unknown tool: ${toolName}. Available tools: getState, analyze, workspace.` });
+    resultJson = JSON.stringify({ error: `Unknown tool: ${toolName}. Available tools: getState, analyze, compare, workspace.` });
   }
 
   return {
