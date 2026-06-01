@@ -364,7 +364,7 @@ export const SpectrogramPanel = ({
         </Group>
       </div>
 
-      {!isCollapsed && <div className={styles.panelBody}>
+      <div className={styles.panelBody} style={{ display: isCollapsed ? 'none' : undefined }}>
         {!effectiveFileId && (
           <div className={styles.emptyState}>
             <Text size="sm" c="dimmed">Select a file above to run spectrogram</Text>
@@ -427,7 +427,7 @@ export const SpectrogramPanel = ({
         {effectiveFileId && spectrogramStatus !== 'error' && (
           <div className={styles.resizeHandle} onPointerDown={handleResizePointerDown} />
         )}
-      </div>}
+      </div>
     </div>
   );
 };

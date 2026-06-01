@@ -92,9 +92,29 @@
 .metricRow {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
   padding: 2px 0;
+}
+
+.metricBar {
+  flex: 1;
+  height: 4px;
+  background-color: var(--bg-elevated);
+  border-radius: 2px;
+  overflow: hidden;
+  min-width: 32px;
+}
+
+.metricBarFill {
+  height: 100%;
+  background-color: #00b8a9;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.metricBarFillHighlight {
+  background-color: #f97316;
 }
 
 .metricLabel {

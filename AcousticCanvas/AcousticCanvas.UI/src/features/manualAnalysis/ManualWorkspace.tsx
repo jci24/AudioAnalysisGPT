@@ -1,6 +1,7 @@
 import type { JSX } from 'react';
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { AudioFileDropzone } from '../audioUpload/AudioFileDropzone';
+import { setActiveView } from '../navigation/navigationSlice';
 import { useAudioUpload } from '../audioUpload/useAudioUpload';
 import { TransportUI } from '../playback/TransportUI';
 import { WaveSurferDisplay } from '../waveform/WaveSurferDisplay';
@@ -33,15 +34,18 @@ import { SpectrogramPanel } from '../analysis/SpectrogramPanel';
 import { SpectrumPanel } from '../analysis/SpectrumPanel';
 import styles from './ManualWorkspace.module.scss';
 
-interface ManualWorkspaceProps {
-  showDropzone?: boolean;
-}
-
-export const ManualWorkspace = ({ showDropzone = false }: ManualWorkspaceProps): JSX.Element => {
+export const ManualWorkspace = (): JSX.Element => {
   const dispatch = useAppDispatch();
   const files = useAppSelector(projectFilesSelector);
   const uploadedFile = files.length > 0 ? files[0] : null;
   const { isUploading, uploadFile } = useAudioUpload();
+
+  const handleFileSelected = async (file: File): Promise<void> => {
+    const result = await uploadFile(file);
+    if (result) {
+      dispatch(setActiveView('import'));
+    }
+  };
   const loopEnabled = useAppSelector(loopEnabledSelector);
   const activeSelection = useAppSelector(activeSelectionSelector);
   const analysisResult = useAppSelector(analysisResultSelector);
@@ -170,28 +174,15 @@ export const ManualWorkspace = ({ showDropzone = false }: ManualWorkspaceProps):
     waveSurferRef.current?.clearSelection();
   };
 
-  // Home view: always show welcome placeholder
-  // Import view: show dropzone if no file, show file content if uploaded
-  const isHomeView = !showDropzone;
-  const shouldShowFileContent = uploadedFile && showDropzone;
-
   return (
     <div className={styles.workspaceWithFileList}>
-      {isHomeView && (
+      {!uploadedFile && (
         <div className={styles.workspace}>
-          <div className={styles.emptyState}>
-            <p>Welcome to SoundLens</p>
-          </div>
+          <AudioFileDropzone onFileSelected={handleFileSelected} isUploading={isUploading} />
         </div>
       )}
 
-      {showDropzone && !uploadedFile && (
-        <div className={styles.workspace}>
-          <AudioFileDropzone onFileSelected={uploadFile} isUploading={isUploading} />
-        </div>
-      )}
-
-      {shouldShowFileContent && (
+      {uploadedFile && (
         <>
           <FileListPanel
             uploadedFile={uploadedFile}

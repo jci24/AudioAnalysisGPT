@@ -42,7 +42,16 @@ function FileInfoSection({ fileInfo }: { fileInfo: FileInfoAnalysis }): JSX.Elem
   );
 }
 
+const CREST_FACTOR_DB_MAX = 40;
+
 function ChannelLevelSection({ channel }: { channel: ChannelLevelAnalysis }): JSX.Element {
+  const peakBarPercent = Math.abs(channel.peak) * 100;
+  const rmsBarPercent = channel.rms * 100;
+  const crestFactorBarPercent = channel.crestFactorDb !== null
+    ? (channel.crestFactorDb / CREST_FACTOR_DB_MAX) * 100
+    : undefined;
+  const dcOffsetBarPercent = Math.abs(channel.dcOffset) * 100;
+
   return (
     <div className={styles.section}>
       <div className={styles.sectionLabel}>
@@ -53,16 +62,16 @@ function ChannelLevelSection({ channel }: { channel: ChannelLevelAnalysis }): JS
       <div className={styles.metricGrid}>
         <MetricRow label="Min" value={`${formatValue(channel.min)} ${channel.unit}`} />
         <MetricRow label="Max" value={`${formatValue(channel.max)} ${channel.unit}`} />
-        <MetricRow label="Peak" value={`${formatValue(channel.peak)} ${channel.unit}`} highlight />
+        <MetricRow label="Peak" value={`${formatValue(channel.peak)} ${channel.unit}`} highlight barPercent={peakBarPercent} />
         <MetricRow label="Peak level" value={formatDb(channel.peakDb, channel.dbUnit)} highlight />
         <Divider my={4} color="var(--border)" />
-        <MetricRow label="RMS" value={`${formatValue(channel.rms)} ${channel.unit}`} />
+        <MetricRow label="RMS" value={`${formatValue(channel.rms)} ${channel.unit}`} barPercent={rmsBarPercent} />
         <MetricRow label="RMS level" value={formatDb(channel.rmsDb, channel.dbUnit)} />
         <Divider my={4} color="var(--border)" />
         <MetricRow label="Crest factor" value={formatLinear(channel.crestFactor, '')} />
-        <MetricRow label="Crest factor dB" value={channel.crestFactorDb !== null ? `${channel.crestFactorDb.toFixed(3)} dB` : 'N/A'} />
+        <MetricRow label="Crest factor dB" value={channel.crestFactorDb !== null ? `${channel.crestFactorDb.toFixed(3)} dB` : 'N/A'} barPercent={crestFactorBarPercent} />
         <Divider my={4} color="var(--border)" />
-        <MetricRow label="DC offset" value={`${formatValue(channel.dcOffset, 6)} ${channel.unit}`} />
+        <MetricRow label="DC offset" value={`${formatValue(channel.dcOffset, 6)} ${channel.unit}`} barPercent={dcOffsetBarPercent} />
       </div>
     </div>
   );
@@ -72,14 +81,24 @@ function MetricRow({
   label,
   value,
   highlight = false,
+  barPercent,
 }: {
   label: string;
   value: string;
   highlight?: boolean;
+  barPercent?: number;
 }): JSX.Element {
   return (
     <div className={styles.metricRow}>
       <span className={styles.metricLabel}>{label}</span>
+      {barPercent !== undefined && (
+        <div className={styles.metricBar}>
+          <div
+            className={`${styles.metricBarFill} ${highlight ? styles.metricBarFillHighlight : ''}`}
+            style={{ width: `${Math.max(0, Math.min(100, barPercent))}%` }}
+          />
+        </div>
+      )}
       <span className={`${styles.metricValue} ${highlight ? styles.metricValueHighlight : ''}`}>
         {value}
       </span>
