@@ -18,9 +18,13 @@ public sealed class PairwiseDiff
     public required string FileIdA { get; init; }
     public required string FileIdB { get; init; }
     public required double PeakDeltaDb { get; init; }
+    public required string HigherPeakFileId { get; init; }
     public required double RmsDeltaDb { get; init; }
+    public required string HigherRmsFileId { get; init; }
     public required double CrestFactorDeltaDb { get; init; }
+    public required string HigherCrestFactorFileId { get; init; }
     public required double PeakFrequencyDeltaHz { get; init; }
+    public required string HigherPeakFrequencyFileId { get; init; }
 }
 
 public sealed class CompareResult

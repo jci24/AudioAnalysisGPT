@@ -5,7 +5,7 @@ import { callAnalyzeTool } from '../../agent/services/analyzeToolService';
 import { callCompareTool } from '../../agent/services/compareToolService';
 import { applyWorkspaceAction } from '../../agent/utils/workspaceTool';
 import type { AnalysisKind, WorkspaceAction } from '../../agent/agentToolTypes';
-import { analysisArtifactAdded, markerArtifactAdded, selectionArtifactAdded } from '../agentWorkspaceSlice';
+import { analysisArtifactAdded, markerArtifactAdded, selectionArtifactAdded, compareArtifactAdded } from '../agentWorkspaceSlice';
 
 export type ToolExecutionResult = {
   toolCallId: string;
@@ -150,6 +150,12 @@ export async function executeToolCall(
       const startSeconds = typeof parsedArgs['startSeconds'] === 'number' ? parsedArgs['startSeconds'] : null;
       const endSeconds = typeof parsedArgs['endSeconds'] === 'number' ? parsedArgs['endSeconds'] : null;
       const compareResult = await callCompareTool({ fileIds, startSeconds, endSeconds });
+      dispatch(compareArtifactAdded({
+        type: 'compare_result',
+        id: crypto.randomUUID(),
+        timestamp: new Date().toISOString(),
+        result: compareResult,
+      }));
       resultJson = JSON.stringify(compareResult);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Compare failed';

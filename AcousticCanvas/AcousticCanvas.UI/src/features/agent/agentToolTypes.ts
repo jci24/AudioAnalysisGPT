@@ -147,9 +147,13 @@ export type PairwiseDiff = {
   fileIdA: string;
   fileIdB: string;
   peakDeltaDb: number;
+  higherPeakFileId: string;
   rmsDeltaDb: number;
+  higherRmsFileId: string;
   crestFactorDeltaDb: number;
+  higherCrestFactorFileId: string;
   peakFrequencyDeltaHz: number;
+  higherPeakFrequencyFileId: string;
 };
 
 export type CompareResult = {

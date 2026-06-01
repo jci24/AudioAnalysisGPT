@@ -218,6 +218,77 @@
   }
 }
 
+// ─── Raw data drawer ─────────────────────────────────────
+
+.rawDrawer {
+  border-top: 1px solid var(--border);
+}
+
+.rawDrawerToggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 5px 10px;
+  font-size: 0.62rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: color 0.12s ease;
+
+  &:hover {
+    color: var(--text-primary);
+  }
+}
+
+.rawDrawerJson {
+  margin: 0;
+  padding: 6px 10px 8px;
+  font-size: 0.6rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  background-color: var(--bg-base);
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow: hidden;
+  border-top: 1px solid var(--border);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+// ─── Compare card accent ──────────────────────────────────
+
+.cardCompare {
+  border-left: 3px solid #3b9eff;
+}
+
+.cardKindTagCompare {
+  color: #3b9eff;
+  background-color: rgba(59, 158, 255, 0.1);
+}
+
+.compareFileRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.compareFileName {
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 // ─── Marker card accent ───────────────────────────────────
 
 .cardMarker {

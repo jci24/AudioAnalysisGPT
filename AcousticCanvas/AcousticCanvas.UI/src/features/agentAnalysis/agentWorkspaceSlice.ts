@@ -1,6 +1,6 @@
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
-import type { AgentAnalysisResult } from '../agent/agentToolTypes';
+import type { AgentAnalysisResult, CompareResult } from '../agent/agentToolTypes';
 
 export type AgentArtifactAnalysis = {
   type: 'analysis_result';
@@ -33,11 +33,19 @@ export type AgentArtifactViewOpened = {
   view: string;
 };
 
+export type AgentArtifactCompare = {
+  type: 'compare_result';
+  id: string;
+  timestamp: string;
+  result: CompareResult;
+};
+
 export type AgentArtifact =
   | AgentArtifactAnalysis
   | AgentArtifactMarker
   | AgentArtifactSelection
-  | AgentArtifactViewOpened;
+  | AgentArtifactViewOpened
+  | AgentArtifactCompare;
 
 interface AgentWorkspaceState {
   artifacts: AgentArtifact[];
@@ -63,6 +71,9 @@ const agentWorkspaceSlice = createSlice({
     viewOpenedArtifactAdded: (state, action: PayloadAction<AgentArtifactViewOpened>) => {
       state.artifacts.push(action.payload);
     },
+    compareArtifactAdded: (state, action: PayloadAction<AgentArtifactCompare>) => {
+      state.artifacts.push(action.payload);
+    },
     agentWorkspaceCleared: () => initialState,
   },
 });
@@ -72,6 +83,7 @@ export const {
   markerArtifactAdded,
   selectionArtifactAdded,
   viewOpenedArtifactAdded,
+  compareArtifactAdded,
   agentWorkspaceCleared,
 } = agentWorkspaceSlice.actions;
 

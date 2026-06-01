@@ -47,9 +47,13 @@ public class RunCompareHandler(SignalAnalysisService analysisService)
                     FileIdA = a.FileId,
                     FileIdB = b.FileId,
                     PeakDeltaDb = b.PeakDb - a.PeakDb,
+                    HigherPeakFileId = a.PeakDb >= b.PeakDb ? a.FileId : b.FileId,
                     RmsDeltaDb = b.RmsDb - a.RmsDb,
+                    HigherRmsFileId = a.RmsDb >= b.RmsDb ? a.FileId : b.FileId,
                     CrestFactorDeltaDb = b.CrestFactorDb - a.CrestFactorDb,
+                    HigherCrestFactorFileId = a.CrestFactorDb >= b.CrestFactorDb ? a.FileId : b.FileId,
                     PeakFrequencyDeltaHz = b.PeakFrequencyHz - a.PeakFrequencyHz,
+                    HigherPeakFrequencyFileId = a.PeakFrequencyHz >= b.PeakFrequencyHz ? a.FileId : b.FileId,
                 });
             }
         }

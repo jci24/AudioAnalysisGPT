@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
-import { useRef, useEffect } from 'react';
-import { IconArrowRight, IconFileMusic, IconAlignBoxLeftMiddle } from '@tabler/icons-react';
+import { useRef, useEffect, useState } from 'react';
+import { IconArrowRight, IconFileMusic, IconAlignBoxLeftMiddle, IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useAppDispatch, useAppSelector } from '../../store/reduxHooks';
 import { agentArtifactsSelector } from './agentWorkspaceSlice';
 import type {
@@ -8,6 +8,7 @@ import type {
   AgentArtifactAnalysis,
   AgentArtifactMarker,
   AgentArtifactSelection,
+  AgentArtifactCompare,
 } from './agentWorkspaceSlice';
 import { setActiveMode } from '../navigation/navigationSlice';
 import { activeSelectionSelector } from '../waveform/waveformSelectionSlice';
@@ -55,13 +56,34 @@ function formatTimestamp(isoString: string): string {
   return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
+function RawDataDrawer({ data }: { data: unknown }): JSX.Element {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const rawJson = JSON.stringify(data, null, 2);
+
+  return (
+    <div className={styles.rawDrawer}>
+      <button
+        type="button"
+        className={styles.rawDrawerToggle}
+        onClick={() => setIsExpanded((prev) => !prev)}
+        aria-expanded={isExpanded}
+      >
+        {isExpanded ? <IconChevronDown size={10} /> : <IconChevronRight size={10} />}
+        Raw data
+      </button>
+      {isExpanded && (
+        <pre className={styles.rawDrawerJson}>{rawJson}</pre>
+      )}
+    </div>
+  );
+}
+
 function AnalysisCard({ artifact }: { artifact: AgentArtifactAnalysis }): JSX.Element {
   const dispatch = useAppDispatch();
   const result = artifact.result;
 
   const displayEntries = Object.entries(result.summary)
-    .filter(([, value]) => value !== null && value !== undefined)
-    .slice(0, 6);
+    .filter(([, value]) => value !== null && value !== undefined);
 
   const kindLabel = result.kind === 'file_info' ? 'File Info' : result.kind === 'level' ? 'Level' : 'Spectrum';
 
@@ -92,6 +114,7 @@ function AnalysisCard({ artifact }: { artifact: AgentArtifactAnalysis }): JSX.El
           );
         })}
       </div>
+      <RawDataDrawer data={result} />
       <div className={styles.cardFooter}>
         <button
           type="button"
@@ -102,6 +125,37 @@ function AnalysisCard({ artifact }: { artifact: AgentArtifactAnalysis }): JSX.El
           Open in Manual Mode <IconArrowRight size={10} />
         </button>
       </div>
+    </div>
+  );
+}
+
+function CompareCard({ artifact }: { artifact: AgentArtifactCompare }): JSX.Element {
+  const result = artifact.result;
+
+  return (
+    <div className={`${styles.card} ${styles.cardCompare}`}>
+      <div className={styles.cardHeader}>
+        <span className={`${styles.cardKindTag} ${styles.cardKindTagCompare}`}>Compare</span>
+        <span className={styles.cardTimestamp}>{formatTimestamp(artifact.timestamp)}</span>
+      </div>
+      <div className={styles.cardBody}>
+        {result.files.map((file) => (
+          <div key={file.fileId} className={styles.compareFileRow}>
+            <span className={styles.compareFileName} title={file.fileName}>{file.fileName}</span>
+            <span className={styles.metricValue}>{file.peakDb.toFixed(2)} dBFS pk</span>
+            <span className={styles.metricValue}>{file.rmsDb.toFixed(2)} dBFS rms</span>
+          </div>
+        ))}
+        {result.pairwiseDiffs.map((diff) => (
+          <div key={`${diff.fileIdA}-${diff.fileIdB}`} className={styles.metricRow}>
+            <span className={styles.metricLabel}>Δ rms</span>
+            <span className={`${styles.metricValue} ${styles.metricValueHighlight}`}>
+              {diff.rmsDeltaDb > 0 ? '+' : ''}{diff.rmsDeltaDb.toFixed(2)} dB
+            </span>
+          </div>
+        ))}
+      </div>
+      <RawDataDrawer data={result} />
     </div>
   );
 }
@@ -166,6 +220,9 @@ function ArtifactCard({ artifact }: { artifact: AgentArtifact }): JSX.Element {
   }
   if (artifact.type === 'selection_set') {
     return <SelectionCard artifact={artifact} />;
+  }
+  if (artifact.type === 'compare_result') {
+    return <CompareCard artifact={artifact} />;
   }
   return <></>;
 }
