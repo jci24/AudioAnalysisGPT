@@ -6,7 +6,7 @@ import { markersSelector, removeMarker } from '../../project/projectSlice';
 import type { Marker } from '../../../store/projectState';
 
 const MARKER_COLOR = 'rgba(224, 82, 82, 0.9)';
-const DELETE_BUTTON_SIZE = 14;
+const DELETE_BUTTON_SIZE = 16;
 
 function formatMarkerTime(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
@@ -19,45 +19,56 @@ function buildMarkerContent(
   marker: Marker,
   onDelete: (markerId: string) => void,
 ): HTMLElement {
-  const container = document.createElement('div');
-  container.style.cssText = [
-    'display: flex',
-    'flex-direction: column',
-    'align-items: center',
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = [
     'position: relative',
+    'height: 100%',
+    'display: flex',
+    'align-items: center',
+    'justify-content: center',
+  ].join(';');
+
+  const line = document.createElement('div');
+  line.style.cssText = [
+    'width: 2px',
+    'height: 100%',
+    'background: ' + MARKER_COLOR,
   ].join(';');
 
   const labelContainer = document.createElement('div');
   labelContainer.style.cssText = [
     'position: absolute',
-    'bottom: 8px',
-    'left: 50%',
-    'transform: translateX(-50%)',
+    'top: 4px',
+    'left: 4px',
     'display: flex',
     'flex-direction: column',
-    'align-items: center',
-    'gap: 4px',
+    'align-items: flex-start',
+    'gap: 2px',
     'pointer-events: auto',
+    'opacity: 0',
+    'transition: opacity 0.15s ease',
   ].join(';');
 
   const deleteButton = document.createElement('button');
-  deleteButton.textContent = '×';
+  deleteButton.innerHTML = '×';
   deleteButton.style.cssText = [
     `width: ${DELETE_BUTTON_SIZE}px`,
     `height: ${DELETE_BUTTON_SIZE}px`,
-    'border-radius: 50%',
+    'border-radius: 3px',
     'border: none',
-    'background: rgba(224, 82, 82, 0.9)',
+    'background: rgba(224, 82, 82, 0.95)',
     'color: white',
-    'font-size: 10px',
+    'font-size: 12px',
+    'font-weight: bold',
     'line-height: 1',
     'cursor: pointer',
     'display: flex',
     'align-items: center',
     'justify-content: center',
     'padding: 0',
-    'margin-bottom: 2px',
+    'box-shadow: 0 1px 3px rgba(0,0,0,0.3)',
   ].join(';');
+  deleteButton.title = 'Delete marker';
   deleteButton.addEventListener('click', (event) => {
     event.stopPropagation();
     onDelete(marker.id);
@@ -68,14 +79,15 @@ function buildMarkerContent(
   label.style.cssText = [
     'font-size: 10px',
     "font-family: 'JetBrains Mono', ui-monospace, monospace",
-    'color: rgba(0, 0, 0, 0.7)',
-    'background: rgba(255, 255, 255, 0.9)',
+    'color: rgba(0, 0, 0, 0.8)',
+    'background: rgba(255, 255, 255, 0.95)',
     'padding: 2px 6px',
-    'border-radius: 4px',
+    'border-radius: 3px',
     'white-space: nowrap',
-    'max-width: 120px',
+    'max-width: 140px',
     'overflow: hidden',
     'text-overflow: ellipsis',
+    'box-shadow: 0 1px 2px rgba(0,0,0,0.1)',
   ].join(';');
 
   const timeLabel = document.createElement('span');
@@ -83,18 +95,27 @@ function buildMarkerContent(
   timeLabel.style.cssText = [
     'font-size: 9px',
     "font-family: 'JetBrains Mono', ui-monospace, monospace",
-    'color: rgba(0, 0, 0, 0.5)',
-    'background: rgba(255, 255, 255, 0.8)',
+    'color: rgba(0, 0, 0, 0.6)',
+    'background: rgba(255, 255, 255, 0.9)',
     'padding: 1px 4px',
-    'border-radius: 3px',
+    'border-radius: 2px',
   ].join(';');
 
   labelContainer.appendChild(deleteButton);
   labelContainer.appendChild(label);
   labelContainer.appendChild(timeLabel);
-  container.appendChild(labelContainer);
 
-  return container;
+  wrapper.appendChild(line);
+  wrapper.appendChild(labelContainer);
+
+  wrapper.addEventListener('mouseenter', () => {
+    labelContainer.style.opacity = '1';
+  });
+  wrapper.addEventListener('mouseleave', () => {
+    labelContainer.style.opacity = '0';
+  });
+
+  return wrapper;
 }
 
 interface UseMarkersOptions {

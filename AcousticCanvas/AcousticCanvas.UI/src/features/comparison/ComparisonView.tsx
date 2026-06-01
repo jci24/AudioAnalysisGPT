@@ -1,0 +1,257 @@
+import type { JSX } from 'react';
+import { useState } from 'react';
+import type { CompareResult, CompareFileSummary, PairwiseDiff, CompareBandEnergy } from '../agent/agentToolTypes';
+import { ComparisonSpectrumCanvas } from './ComparisonSpectrumCanvas';
+import styles from './ComparisonView.module.scss';
+
+interface ComparisonViewProps {
+  result: CompareResult;
+}
+
+function stripToFileName(value: string): string {
+  const lastSlash = Math.max(value.lastIndexOf('/'), value.lastIndexOf('\\'));
+  return lastSlash >= 0 ? value.slice(lastSlash + 1) : value;
+}
+
+function formatDb(value: number): string {
+  if (!isFinite(value)) return '—';
+  const sign = value > 0 ? '+' : '';
+  return `${sign}${value.toFixed(2)} dB`;
+}
+
+function formatDeltaDb(value: number): string {
+  if (!isFinite(value)) return '—';
+  const sign = value > 0 ? '+' : '';
+  return `${sign}${value.toFixed(1)} dB`;
+}
+
+interface LevelMetricsTableProps {
+  fileA: CompareFileSummary;
+  fileB: CompareFileSummary;
+  diff: PairwiseDiff;
+  labelA: string;
+  labelB: string;
+}
+
+function LevelMetricsTable({ fileA, fileB, diff, labelA, labelB }: LevelMetricsTableProps): JSX.Element {
+  const rows = [
+    {
+      label: 'Peak',
+      valueA: `${fileA.peakDb.toFixed(2)} dBFS`,
+      valueB: `${fileB.peakDb.toFixed(2)} dBFS`,
+      delta: diff.peakDeltaDb,
+      higherLabel: diff.higherPeakFileId === fileA.fileId ? labelA : labelB,
+    },
+    {
+      label: 'RMS',
+      valueA: `${fileA.rmsDb.toFixed(2)} dBFS`,
+      valueB: `${fileB.rmsDb.toFixed(2)} dBFS`,
+      delta: diff.rmsDeltaDb,
+      higherLabel: diff.higherRmsFileId === fileA.fileId ? labelA : labelB,
+    },
+    {
+      label: 'Crest Factor',
+      valueA: `${fileA.crestFactorDb.toFixed(2)} dB`,
+      valueB: `${fileB.crestFactorDb.toFixed(2)} dB`,
+      delta: diff.crestFactorDeltaDb,
+      higherLabel: diff.higherCrestFactorFileId === fileA.fileId ? labelA : labelB,
+    },
+    {
+      label: 'Peak Freq',
+      valueA: `${(fileA.peakFrequencyHz / 1000).toFixed(2)} kHz`,
+      valueB: `${(fileB.peakFrequencyHz / 1000).toFixed(2)} kHz`,
+      delta: diff.peakFrequencyDeltaHz,
+      higherLabel: diff.higherPeakFrequencyFileId === fileA.fileId ? labelA : labelB,
+      deltaUnit: 'Hz',
+    },
+  ];
+
+  return (
+    <table className={styles.metricsTable}>
+      <thead>
+        <tr>
+          <th className={styles.tableHeadLabel}>Metric</th>
+          <th className={styles.tableHeadA}>{labelA}</th>
+          <th className={styles.tableHeadB}>{labelB}</th>
+          <th className={styles.tableHeadDelta}>Δ (B − A)</th>
+          <th className={styles.tableHeadWinner}>Higher</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => {
+          const deltaFormatted = row.deltaUnit === 'Hz'
+            ? `${row.delta > 0 ? '+' : ''}${row.delta.toFixed(0)} Hz`
+            : formatDb(row.delta);
+          const isPositiveDelta = row.delta > 0;
+          const isNegativeDelta = row.delta < 0;
+
+          return (
+            <tr key={row.label} className={styles.tableRow}>
+              <td className={styles.tableLabel}>{row.label}</td>
+              <td className={styles.tableValueA}>{row.valueA}</td>
+              <td className={styles.tableValueB}>{row.valueB}</td>
+              <td className={`${styles.tableDelta} ${isPositiveDelta ? styles.deltaPositive : ''} ${isNegativeDelta ? styles.deltaNegative : ''}`}>
+                {deltaFormatted}
+              </td>
+              <td className={styles.tableWinner}>{row.higherLabel}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+interface BandEnergyTableProps {
+  bandEnergiesA: CompareBandEnergy[];
+  bandEnergiesB: CompareBandEnergy[];
+  bandEnergyDeltas: CompareBandEnergy[];
+  labelA: string;
+  labelB: string;
+}
+
+function BandEnergyTable({ bandEnergiesA, bandEnergiesB, bandEnergyDeltas, labelA, labelB }: BandEnergyTableProps): JSX.Element {
+  return (
+    <table className={styles.metricsTable}>
+      <thead>
+        <tr>
+          <th className={styles.tableHeadLabel}>Band</th>
+          <th className={styles.tableHeadLabel}>Range</th>
+          <th className={styles.tableHeadA}>{labelA}</th>
+          <th className={styles.tableHeadB}>{labelB}</th>
+          <th className={styles.tableHeadDelta}>Δ (B − A)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {bandEnergiesA.map((bandA, index) => {
+          const bandB = bandEnergiesB[index];
+          const bandDelta = bandEnergyDeltas[index];
+          if (!bandB || !bandDelta) return null;
+
+          const deltaValue = bandDelta.energyDb;
+          const isPositiveDelta = isFinite(deltaValue) && deltaValue > 0;
+          const isNegativeDelta = isFinite(deltaValue) && deltaValue < 0;
+          const rangeLabel = bandA.highHz >= 10000
+            ? `${(bandA.lowHz / 1000).toFixed(0)}–${(bandA.highHz / 1000).toFixed(0)}k`
+            : `${bandA.lowHz >= 1000 ? `${(bandA.lowHz / 1000).toFixed(0)}k` : bandA.lowHz}–${bandA.highHz >= 1000 ? `${(bandA.highHz / 1000).toFixed(0)}k` : bandA.highHz}`;
+
+          return (
+            <tr key={bandA.bandName} className={styles.tableRow}>
+              <td className={styles.tableLabel}>{bandA.bandName}</td>
+              <td className={styles.tableMeta}>{rangeLabel} Hz</td>
+              <td className={styles.tableValueA}>{formatDb(bandA.energyDb)}</td>
+              <td className={styles.tableValueB}>{formatDb(bandB.energyDb)}</td>
+              <td className={`${styles.tableDelta} ${isPositiveDelta ? styles.deltaPositive : ''} ${isNegativeDelta ? styles.deltaNegative : ''}`}>
+                {formatDeltaDb(deltaValue)}
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+export function ComparisonView({ result }: ComparisonViewProps): JSX.Element {
+  const [showDelta, setShowDelta] = useState(true);
+  const [activeTab, setActiveTab] = useState<'level' | 'bands'>('bands');
+
+  if (result.files.length < 2 || result.pairwiseDiffs.length === 0) {
+    return (
+      <div className={styles.emptyState}>
+        <span>Comparison requires at least two files.</span>
+      </div>
+    );
+  }
+
+  const fileA = result.files[0];
+  const fileB = result.files[1];
+  const diff = result.pairwiseDiffs[0];
+
+  const labelA = stripToFileName(fileA.fileId);
+  const labelB = stripToFileName(fileB.fileId);
+
+  return (
+    <div className={styles.comparisonView}>
+
+      {/* File legend strip */}
+      <div className={styles.legendStrip}>
+        <div className={styles.legendItem}>
+          <span className={styles.legendSwatch} style={{ background: '#4dabf7' }} />
+          <span className={styles.legendLabel} title={labelA}>{labelA}</span>
+        </div>
+        <div className={styles.legendItem}>
+          <span className={styles.legendSwatch} style={{ background: '#ff8c42' }} />
+          <span className={styles.legendLabel} title={labelB}>{labelB}</span>
+        </div>
+        {showDelta && (
+          <div className={styles.legendItem}>
+            <span className={styles.legendSwatchDashed} style={{ borderColor: '#69db7c' }} />
+            <span className={styles.legendLabel}>Δ (B − A)</span>
+          </div>
+        )}
+        <label className={styles.deltaToggle}>
+          <input
+            type="checkbox"
+            checked={showDelta}
+            onChange={(e) => setShowDelta(e.target.checked)}
+          />
+          Show Δ curve
+        </label>
+      </div>
+
+      {/* Spectrum overlay canvas */}
+      <div className={styles.canvasSection}>
+        <ComparisonSpectrumCanvas
+          curveA={fileA.spectrumCurve}
+          curveB={fileB.spectrumCurve}
+          delta={diff.spectrumDelta}
+          labelA={labelA}
+          labelB={labelB}
+          showDelta={showDelta}
+        />
+      </div>
+
+      {/* Tab switcher for tables */}
+      <div className={styles.tabBar}>
+        <button
+          type="button"
+          className={`${styles.tabButton} ${activeTab === 'bands' ? styles.tabButtonActive : ''}`}
+          onClick={() => setActiveTab('bands')}
+        >
+          Band Energy
+        </button>
+        <button
+          type="button"
+          className={`${styles.tabButton} ${activeTab === 'level' ? styles.tabButtonActive : ''}`}
+          onClick={() => setActiveTab('level')}
+        >
+          Level Metrics
+        </button>
+      </div>
+
+      {/* Tables */}
+      <div className={styles.tableSection}>
+        {activeTab === 'bands' && (
+          <BandEnergyTable
+            bandEnergiesA={fileA.bandEnergies}
+            bandEnergiesB={fileB.bandEnergies}
+            bandEnergyDeltas={diff.bandEnergyDeltas}
+            labelA={labelA}
+            labelB={labelB}
+          />
+        )}
+        {activeTab === 'level' && (
+          <LevelMetricsTable
+            fileA={fileA}
+            fileB={fileB}
+            diff={diff}
+            labelA={labelA}
+            labelB={labelB}
+          />
+        )}
+      </div>
+
+    </div>
+  );
+}

@@ -1,5 +1,6 @@
 import type { JSX } from 'react';
 import { useRef, useEffect, useState } from 'react';
+import { ComparisonView } from '../comparison/ComparisonView';
 import { IconArrowRight, IconFileMusic, IconAlignBoxLeftMiddle, IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useAppDispatch, useAppSelector } from '../../store/reduxHooks';
 import { agentArtifactsSelector } from './agentWorkspaceSlice';
@@ -131,48 +132,8 @@ function AnalysisCard({ artifact }: { artifact: AgentArtifactAnalysis }): JSX.El
   );
 }
 
-type CompareDiffRow = {
-  label: string;
-  delta: number;
-  unit: string;
-  higherFileId: string;
-  fileIdA: string;
-  fileIdB: string;
-  fileNameA: string;
-  fileNameB: string;
-};
-
-function CompareDiffMetricRow({ row }: { row: CompareDiffRow }): JSX.Element {
-  const winnerName = row.higherFileId === row.fileIdA ? row.fileNameA : row.fileNameB;
-  const sign = row.delta > 0 ? '+' : '';
-  return (
-    <div className={styles.compareDiffRow}>
-      <span className={styles.metricLabel}>{row.label}</span>
-      <span className={styles.compareDiffDelta}>
-        {sign}{Math.abs(row.delta).toFixed(2)} {row.unit}
-      </span>
-      <span className={styles.compareDiffWinner} title={winnerName}>
-        ↑ {winnerName}
-      </span>
-    </div>
-  );
-}
-
 function CompareCard({ artifact }: { artifact: AgentArtifactCompare }): JSX.Element {
   const result = artifact.result;
-
-  const diffRows: CompareDiffRow[] = result.pairwiseDiffs.map((diff) => {
-    const fileA = result.files.find((f) => f.fileId === diff.fileIdA);
-    const fileB = result.files.find((f) => f.fileId === diff.fileIdB);
-    const fileNameA = fileA?.fileName ?? diff.fileIdA;
-    const fileNameB = fileB?.fileName ?? diff.fileIdB;
-    return [
-      { label: 'peak', delta: diff.peakDeltaDb, unit: 'dB', higherFileId: diff.higherPeakFileId, fileIdA: diff.fileIdA, fileIdB: diff.fileIdB, fileNameA, fileNameB },
-      { label: 'rms', delta: diff.rmsDeltaDb, unit: 'dB', higherFileId: diff.higherRmsFileId, fileIdA: diff.fileIdA, fileIdB: diff.fileIdB, fileNameA, fileNameB },
-      { label: 'crest factor', delta: diff.crestFactorDeltaDb, unit: 'dB', higherFileId: diff.higherCrestFactorFileId, fileIdA: diff.fileIdA, fileIdB: diff.fileIdB, fileNameA, fileNameB },
-      { label: 'peak freq', delta: diff.peakFrequencyDeltaHz, unit: 'Hz', higherFileId: diff.higherPeakFrequencyFileId, fileIdA: diff.fileIdA, fileIdB: diff.fileIdB, fileNameA, fileNameB },
-    ];
-  }).flat();
 
   return (
     <div className={`${styles.card} ${styles.cardCompare}`}>
@@ -180,22 +141,8 @@ function CompareCard({ artifact }: { artifact: AgentArtifactCompare }): JSX.Elem
         <span className={`${styles.cardKindTag} ${styles.cardKindTagCompare}`}>Compare</span>
         <span className={styles.cardTimestamp}>{formatTimestamp(artifact.timestamp)}</span>
       </div>
-      <div className={styles.cardBody}>
-        {result.files.map((file) => (
-          <div key={file.fileId} className={styles.compareFileRow}>
-            <span className={styles.compareFileName} title={file.fileName}>{file.fileName}</span>
-            <span className={styles.metricValue}>{file.peakDb.toFixed(2)} pk</span>
-            <span className={styles.metricValue}>{file.rmsDb.toFixed(2)} rms</span>
-            <span className={styles.metricValue}>{(file.peakFrequencyHz / 1000).toFixed(1)}kHz</span>
-          </div>
-        ))}
-        {diffRows.length > 0 && (
-          <div className={styles.compareDiffSection}>
-            {diffRows.map((row) => (
-              <CompareDiffMetricRow key={`${row.fileIdA}-${row.fileIdB}-${row.label}`} row={row} />
-            ))}
-          </div>
-        )}
+      <div className={styles.compareViewWrapper}>
+        <ComparisonView result={result} />
       </div>
       <RawDataDrawer data={result} />
     </div>
@@ -341,7 +288,7 @@ function ArtifactCard({ artifact }: { artifact: AgentArtifact }): JSX.Element {
   if (artifact.type === 'report') {
     return <ReportCard artifact={artifact} />;
   }
-  return null;
+  return <></>;
 }
 
 export function AgentWorkspacePanel(): JSX.Element {

@@ -131,6 +131,25 @@ export type CompareInput = {
   endSeconds: number | null;
 };
 
+export type CompareSpectrumCurve = {
+  frequenciesHz: number[];
+  magnitudesDb: (number | null)[];
+  fftSize: number;
+  overlap: number;
+};
+
+export type CompareSpectrumDelta = {
+  frequenciesHz: number[];
+  deltaDb: (number | null)[];
+};
+
+export type CompareBandEnergy = {
+  bandName: string;
+  lowHz: number;
+  highHz: number;
+  energyDb: number;
+};
+
 export type CompareFileSummary = {
   fileId: string;
   fileName: string;
@@ -141,6 +160,8 @@ export type CompareFileSummary = {
   peakFrequencyMagnitudeDb: number;
   regionStartSeconds: number;
   regionEndSeconds: number;
+  spectrumCurve: CompareSpectrumCurve;
+  bandEnergies: CompareBandEnergy[];
 };
 
 export type PairwiseDiff = {
@@ -154,6 +175,8 @@ export type PairwiseDiff = {
   higherCrestFactorFileId: string;
   peakFrequencyDeltaHz: number;
   higherPeakFrequencyFileId: string;
+  spectrumDelta: CompareSpectrumDelta;
+  bandEnergyDeltas: CompareBandEnergy[];
 };
 
 export type CompareResult = {

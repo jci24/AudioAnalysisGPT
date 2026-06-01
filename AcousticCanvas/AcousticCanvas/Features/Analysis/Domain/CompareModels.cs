@@ -1,5 +1,31 @@
 namespace AcousticCanvas.Features.Analysis.Domain;
 
+public sealed class CompareSpectrumCurve
+{
+    // Parallel arrays: frequenciesHz[k] corresponds to magnitudesDb[k].
+    // Length is (fftSize / 2) + 1. MagnitudesDb values may be null for bins with zero energy.
+    public required IReadOnlyList<double> FrequenciesHz { get; init; }
+    public required IReadOnlyList<double?> MagnitudesDb { get; init; }
+    public required int FftSize { get; init; }
+    public required double Overlap { get; init; }
+}
+
+public sealed class CompareSpectrumDelta
+{
+    // B minus A in dB at each frequency bin. Computed by the backend so the frontend never does math.
+    // null where either A or B has a null magnitude at that bin.
+    public required IReadOnlyList<double> FrequenciesHz { get; init; }
+    public required IReadOnlyList<double?> DeltaDb { get; init; }
+}
+
+public sealed class CompareBandEnergy
+{
+    public required string BandName { get; init; }
+    public required double LowHz { get; init; }
+    public required double HighHz { get; init; }
+    public required double EnergyDb { get; init; }
+}
+
 public sealed class CompareFileSummary
 {
     public required string FileId { get; init; }
@@ -11,6 +37,12 @@ public sealed class CompareFileSummary
     public required double PeakFrequencyMagnitudeDb { get; init; }
     public required double RegionStartSeconds { get; init; }
     public required double RegionEndSeconds { get; init; }
+
+    // Full spectrum curve for this file — used by the frontend overlay canvas.
+    public required CompareSpectrumCurve SpectrumCurve { get; init; }
+
+    // Energy per named frequency band.
+    public required IReadOnlyList<CompareBandEnergy> BandEnergies { get; init; }
 }
 
 public sealed class PairwiseDiff
@@ -25,6 +57,12 @@ public sealed class PairwiseDiff
     public required string HigherCrestFactorFileId { get; init; }
     public required double PeakFrequencyDeltaHz { get; init; }
     public required string HigherPeakFrequencyFileId { get; init; }
+
+    // Precomputed B-A delta curve for the spectrum overlay — no frontend math needed.
+    public required CompareSpectrumDelta SpectrumDelta { get; init; }
+
+    // Per-band delta: B minus A in dB for each named band.
+    public required IReadOnlyList<CompareBandEnergy> BandEnergyDeltas { get; init; }
 }
 
 public sealed class CompareResult

@@ -271,57 +271,10 @@
   background-color: rgba(59, 158, 255, 0.1);
 }
 
-.compareFileRow {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 2px 0;
-}
-
-.compareFileName {
-  font-size: 0.65rem;
-  font-family: var(--font-mono);
-  color: var(--text-primary);
-  flex: 1;
-  min-width: 0;
+.compareViewWrapper {
+  // Give the embedded ComparisonView enough height to show the spectrum canvas + tables.
+  min-height: 520px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.compareDiffSection {
-  margin-top: 4px;
-  padding-top: 4px;
-  border-top: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.compareDiffRow {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.compareDiffDelta {
-  font-size: 0.68rem;
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  color: #3b9eff;
-  font-weight: 600;
-  flex-shrink: 0;
-}
-
-.compareDiffWinner {
-  font-size: 0.6rem;
-  font-family: var(--font-mono);
-  color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  min-width: 0;
 }
 
 // ─── Find card accent ─────────────────────────────────────

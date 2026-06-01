@@ -11,7 +11,6 @@ import { useAppSelector, useAppDispatch } from '../../store/reduxHooks';
 import {
   projectFilesSelector,
   selectedSignalIdSelector,
-  addMarker,
 } from '../project/projectSlice';
 import type { AudioFile } from '../../store/projectState';
 import {
@@ -20,7 +19,7 @@ import {
   activeSelectionSelector,
 } from '../waveform/waveformSelectionSlice';
 import { Text, Group, ActionIcon, Tooltip } from '@mantine/core';
-import { IconRepeat, IconX, IconFileMusic, IconWaveSine, IconChartLine, IconTrash, IconUpload, IconRobot, IconPlus, IconBookmark } from '@tabler/icons-react';
+import { IconRepeat, IconX, IconFileMusic, IconWaveSine, IconChartLine, IconTrash, IconUpload, IconRobot, IconPlus, IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { RightSidebar } from './RightSidebar';
 import { ChatPanel } from '../agentAnalysis/ChatPanel';
 import {
@@ -33,6 +32,7 @@ import { SpectrumPanel } from '../analysis/SpectrumPanel';
 import { useManualPlayback } from './useManualPlayback';
 import { useToolPanels } from './useToolPanels';
 import { useResizablePanel } from './useResizablePanel';
+import { useKeyboardShortcuts, SEEK_STEP_SECONDS } from './useKeyboardShortcuts';
 import styles from './ManualWorkspace.module.scss';
 
 export const ManualWorkspace = (): JSX.Element => {
@@ -110,17 +110,33 @@ export const ManualWorkspace = (): JSX.Element => {
     waveSurferRef.current?.clearSelection();
   };
 
-  const handleAddMarkerAtPlayhead = (): void => {
-    if (!selectedSignalId || currentTime === null) return;
-    const newMarker = {
-      id: crypto.randomUUID(),
-      fileId: selectedSignalId,
-      timeSeconds: currentTime,
-      label: `Marker at ${currentTime.toFixed(2)}s`,
-      source: 'manual' as const,
-    };
-    dispatch(addMarker(newMarker));
+  const handleKeyboardPlayPause = (): void => {
+    if (isPlaying) {
+      handlePause();
+    } else {
+      handlePlay();
+    }
   };
+
+  const handleKeyboardSeekBackward = (): void => {
+    if (currentTime !== null) {
+      handleSeek(Math.max(0, currentTime - SEEK_STEP_SECONDS));
+    }
+  };
+
+  const handleKeyboardSeekForward = (): void => {
+    if (currentTime !== null && duration !== null) {
+      handleSeek(Math.min(duration, currentTime + SEEK_STEP_SECONDS));
+    }
+  };
+
+  useKeyboardShortcuts({
+    isEnabled: files.length > 0,
+    onPlayPause: handleKeyboardPlayPause,
+    onSeekBackward: handleKeyboardSeekBackward,
+    onSeekForward: handleKeyboardSeekForward,
+    onClearSelection: handleClearSelection,
+  });
 
   // Tracks the last selection that WaveSurfer itself reported (from user drag/resize).
   // Updated via handleWaveSurferUserSelectionChange whenever the user interacts with the waveform.
@@ -313,18 +329,6 @@ export const ManualWorkspace = (): JSX.Element => {
                           <IconRepeat size={14} />
                         </ActionIcon>
                       </Tooltip>
-                      <Tooltip label="Add marker at playhead" withArrow position="top">
-                        <ActionIcon
-                          variant="subtle"
-                          color="gray"
-                          size="sm"
-                          onClick={handleAddMarkerAtPlayhead}
-                          aria-label="Add marker at playhead"
-                          disabled={!selectedSignalId}
-                        >
-                          <IconBookmark size={14} />
-                        </ActionIcon>
-                      </Tooltip>
                       {activeSelection && (
                         <Tooltip label="Clear selection" withArrow position="top">
                           <ActionIcon
@@ -383,7 +387,7 @@ interface FileListPanelProps {
   width: number;
 }
 
-const FileListPanel = ({
+function FileListPanel({
   files,
   selectedSignalId,
   onSelectFile,
@@ -394,12 +398,27 @@ const FileListPanel = ({
   hasSpectrogramPanel,
   hasSpectrumPanel,
   width,
-}: FileListPanelProps): JSX.Element => {
+}: FileListPanelProps): JSX.Element {
+  const [expandedFileIds, setExpandedFileIds] = useState<Set<string>>(new Set());
+
+  function handleToggleExpanded(fileId: string): void {
+    setExpandedFileIds((previousSet) => {
+      const nextSet = new Set(previousSet);
+      if (nextSet.has(fileId)) {
+        nextSet.delete(fileId);
+      } else {
+        nextSet.add(fileId);
+      }
+      return nextSet;
+    });
+  }
+
   return (
     <div className={styles.fileListPanel} style={{ width }}>
       <Text fw={600} size="sm" mb="md" c="dimmed">FILES</Text>
       {files.map((file) => {
         const isActive = file.id === selectedSignalId;
+        const isExpanded = expandedFileIds.has(file.id);
         return (
           <div
             key={file.id}
@@ -410,6 +429,15 @@ const FileListPanel = ({
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelectFile(file.id); }}
           >
             <div className={styles.fileTreeRow}>
+              <span
+                className={styles.fileTreeChevron}
+                onClick={(e) => { e.stopPropagation(); handleToggleExpanded(file.id); }}
+                role="button"
+                tabIndex={-1}
+                aria-label={isExpanded ? 'Collapse channels' : 'Expand channels'}
+              >
+                {isExpanded ? <IconChevronDown size={12} /> : <IconChevronRight size={12} />}
+              </span>
               <IconFileMusic size={16} className={styles.fileTreeFileIcon} />
               <span className={styles.fileTreeFileName} title={file.name}>
                 {file.name}
@@ -426,13 +454,17 @@ const FileListPanel = ({
                 </ActionIcon>
               </Tooltip>
             </div>
-            <div className={styles.fileTreeChildren}>
-              <div className={styles.fileTreeChannelRow}>
-                <span className={styles.fileTreeChannelLabel}>
-                  {file.durationSeconds.toFixed(2)}s · {(file.sampleRate / 1000).toFixed(1)} kHz · {file.channels}ch
-                </span>
+            {isExpanded && (
+              <div className={styles.fileTreeChildren}>
+                {Array.from({ length: file.channels }, (_, channelIndex) => (
+                  <div key={channelIndex} className={styles.fileTreeChannelRow}>
+                    <span className={styles.fileTreeChannelLabel}>
+                      Channel {channelIndex + 1}
+                    </span>
+                  </div>
+                ))}
               </div>
-            </div>
+            )}
           </div>
         );
       })}
