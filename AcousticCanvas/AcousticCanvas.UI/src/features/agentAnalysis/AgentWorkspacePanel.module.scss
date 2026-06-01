@@ -390,3 +390,58 @@
   color: #7c6cfc;
   background-color: rgba(124, 108, 252, 0.1);
 }
+
+// ─── Report card ──────────────────────────────────────────
+
+.cardReport {
+  border-left: 3px solid #00b8a9;
+}
+
+.cardKindTagReport {
+  color: #00b8a9;
+  background-color: rgba(0, 184, 169, 0.1);
+}
+
+.reportTitle {
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  font-weight: 600;
+  margin-bottom: 8px;
+  word-break: break-word;
+}
+
+.reportPreview {
+  font-size: 0.6rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 220px;
+  overflow-y: auto;
+  background-color: rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px;
+  margin: 0 0 8px 0;
+  line-height: 1.5;
+}
+
+.reportCopyButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 184, 169, 0.4);
+  background: transparent;
+  color: #00b8a9;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background-color: rgba(0, 184, 169, 0.08);
+  }
+}

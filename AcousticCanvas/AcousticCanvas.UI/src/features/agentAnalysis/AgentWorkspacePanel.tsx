@@ -10,6 +10,7 @@ import type {
   AgentArtifactSelection,
   AgentArtifactCompare,
   AgentArtifactFind,
+  AgentArtifactReport,
 } from './agentWorkspaceSlice';
 import { setActiveMode } from '../navigation/navigationSlice';
 import { activeSelectionSelector } from '../waveform/waveformSelectionSlice';
@@ -288,6 +289,39 @@ function FindCard({ artifact }: { artifact: AgentArtifactFind }): JSX.Element {
   );
 }
 
+function ReportCard({ artifact }: { artifact: AgentArtifactReport }): JSX.Element {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = (): void => {
+    navigator.clipboard.writeText(artifact.markdownContent).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {
+      // silently ignore clipboard errors
+    });
+  };
+
+  return (
+    <div className={`${styles.card} ${styles.cardReport}`}>
+      <div className={styles.cardHeader}>
+        <span className={`${styles.cardKindTag} ${styles.cardKindTagReport}`}>Report</span>
+        <span className={styles.cardTimestamp}>{formatTimestamp(artifact.timestamp)}</span>
+      </div>
+      <div className={styles.cardBody}>
+        <div className={styles.reportTitle}>{artifact.title}</div>
+        <pre className={styles.reportPreview}>{artifact.markdownContent}</pre>
+        <button
+          type="button"
+          className={styles.reportCopyButton}
+          onClick={handleCopy}
+        >
+          {copied ? 'Copied!' : 'Copy Markdown'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ArtifactCard({ artifact }: { artifact: AgentArtifact }): JSX.Element {
   if (artifact.type === 'analysis_result') {
     return <AnalysisCard artifact={artifact} />;
@@ -304,7 +338,10 @@ function ArtifactCard({ artifact }: { artifact: AgentArtifact }): JSX.Element {
   if (artifact.type === 'find_result') {
     return <FindCard artifact={artifact} />;
   }
-  return <></>;
+  if (artifact.type === 'report') {
+    return <ReportCard artifact={artifact} />;
+  }
+  return null;
 }
 
 export function AgentWorkspacePanel(): JSX.Element {

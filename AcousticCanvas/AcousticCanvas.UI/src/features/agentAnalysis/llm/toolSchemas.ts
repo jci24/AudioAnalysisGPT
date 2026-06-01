@@ -154,10 +154,29 @@ export const FIND_TOOL_SCHEMA: OpenAiToolSchema = {
   },
 };
 
+export const REPORT_TOOL_SCHEMA: OpenAiToolSchema = {
+  type: 'function',
+  function: {
+    name: 'report',
+    description: 'Generates a structured Markdown report summarising all analysis results, findings, markers, and events collected during the current session. Call this when the user asks for a report, summary, or wants to export findings.',
+    parameters: {
+      type: 'object',
+      properties: {
+        title: {
+          type: 'string',
+          description: 'Optional title for the report. If omitted, a default title is used.',
+        },
+      },
+      required: [],
+    },
+  },
+};
+
 export const ALL_TOOL_SCHEMAS: OpenAiToolSchema[] = [
   GET_STATE_TOOL_SCHEMA,
   ANALYZE_TOOL_SCHEMA,
   COMPARE_TOOL_SCHEMA,
   FIND_TOOL_SCHEMA,
   WORKSPACE_TOOL_SCHEMA,
+  REPORT_TOOL_SCHEMA,
 ];

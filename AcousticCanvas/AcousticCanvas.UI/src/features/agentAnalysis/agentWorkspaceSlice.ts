@@ -47,13 +47,22 @@ export type AgentArtifactFind = {
   result: FindEventsResult;
 };
 
+export type AgentArtifactReport = {
+  type: 'report';
+  id: string;
+  timestamp: string;
+  title: string;
+  markdownContent: string;
+};
+
 export type AgentArtifact =
   | AgentArtifactAnalysis
   | AgentArtifactMarker
   | AgentArtifactSelection
   | AgentArtifactViewOpened
   | AgentArtifactCompare
-  | AgentArtifactFind;
+  | AgentArtifactFind
+  | AgentArtifactReport;
 
 interface AgentWorkspaceState {
   artifacts: AgentArtifact[];
@@ -85,6 +94,9 @@ const agentWorkspaceSlice = createSlice({
     findArtifactAdded: (state, action: PayloadAction<AgentArtifactFind>) => {
       state.artifacts.push(action.payload);
     },
+    reportArtifactAdded: (state, action: PayloadAction<AgentArtifactReport>) => {
+      state.artifacts.push(action.payload);
+    },
     agentWorkspaceCleared: () => initialState,
   },
 });
@@ -96,6 +108,7 @@ export const {
   viewOpenedArtifactAdded,
   compareArtifactAdded,
   findArtifactAdded,
+  reportArtifactAdded,
   agentWorkspaceCleared,
 } = agentWorkspaceSlice.actions;
 

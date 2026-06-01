@@ -6,7 +6,8 @@ import { callCompareTool } from '../../agent/services/compareToolService';
 import { callFindTool } from '../../agent/services/findToolService';
 import { applyWorkspaceAction } from '../../agent/utils/workspaceTool';
 import type { AnalysisKind, WorkspaceAction } from '../../agent/agentToolTypes';
-import { analysisArtifactAdded, markerArtifactAdded, selectionArtifactAdded, compareArtifactAdded, findArtifactAdded } from '../agentWorkspaceSlice';
+import { analysisArtifactAdded, markerArtifactAdded, selectionArtifactAdded, compareArtifactAdded, findArtifactAdded, reportArtifactAdded } from '../agentWorkspaceSlice';
+import type { AgentArtifact } from '../agentWorkspaceSlice';
 
 export type ToolExecutionResult = {
   toolCallId: string;
@@ -139,6 +140,120 @@ function executeWorkspace(
   return JSON.stringify(workspaceResult);
 }
 
+function buildReportMarkdown(title: string, artifacts: AgentArtifact[], generatedAt: string): string {
+  const lines: string[] = [];
+
+  lines.push(`# ${title}`);
+  lines.push(`*Generated: ${generatedAt}*`);
+  lines.push('');
+
+  const analysisArtifacts = artifacts.filter((a) => a.type === 'analysis_result');
+  const compareArtifacts = artifacts.filter((a) => a.type === 'compare_result');
+  const findArtifacts = artifacts.filter((a) => a.type === 'find_result');
+  const markerArtifacts = artifacts.filter((a) => a.type === 'marker_added');
+
+  if (analysisArtifacts.length > 0) {
+    lines.push('## Analysis Results');
+    lines.push('');
+    for (const artifact of analysisArtifacts) {
+      if (artifact.type !== 'analysis_result') continue;
+      const result = artifact.result;
+      const regionText = result.regionStart !== null && result.regionEnd !== null
+        ? ` (${result.regionStart.toFixed(3)}s – ${result.regionEnd.toFixed(3)}s)`
+        : ' (full file)';
+      lines.push(`### ${result.kind}${regionText}`);
+      lines.push('');
+      for (const [key, value] of Object.entries(result.summary)) {
+        if (value === null || value === undefined) continue;
+        const formattedKey = key.replace(/([A-Z])/g, ' $1').toLowerCase();
+        const formattedValue = typeof value === 'number'
+          ? (Number.isInteger(value) ? String(value) : (value as number).toFixed(4))
+          : String(value);
+        lines.push(`- **${formattedKey}:** ${formattedValue}`);
+      }
+      lines.push('');
+    }
+  }
+
+  if (compareArtifacts.length > 0) {
+    lines.push('## Comparisons');
+    lines.push('');
+    for (const artifact of compareArtifacts) {
+      if (artifact.type !== 'compare_result') continue;
+      const result = artifact.result;
+      lines.push('### File Comparison');
+      lines.push('');
+      for (const file of result.files) {
+        const fileName = stripPathToFileName(file.fileId);
+        lines.push(`**${fileName}** — peak: ${file.peakDb.toFixed(2)} dBFS · RMS: ${file.rmsDb.toFixed(2)} dBFS · crest: ${file.crestFactorDb.toFixed(2)} dB · peak freq: ${file.peakFrequencyHz.toFixed(0)} Hz`);
+      }
+      lines.push('');
+      for (const diff of result.pairwiseDiffs) {
+        const nameA = stripPathToFileName(diff.fileIdA);
+        const nameB = stripPathToFileName(diff.fileIdB);
+        lines.push(`**${nameA} vs ${nameB}** — peak Δ: ${diff.peakDeltaDb.toFixed(2)} dB · RMS Δ: ${diff.rmsDeltaDb.toFixed(2)} dB`);
+      }
+      lines.push('');
+    }
+  }
+
+  if (findArtifacts.length > 0) {
+    lines.push('## Detected Events');
+    lines.push('');
+    for (const artifact of findArtifacts) {
+      if (artifact.type !== 'find_result') continue;
+      const result = artifact.result;
+      const fileName = stripPathToFileName(result.fileId);
+      lines.push(`### ${result.kind} — ${fileName}`);
+      lines.push(`*${result.eventCount} event(s) found*`);
+      lines.push('');
+      for (const event of result.events) {
+        lines.push(`- **${event.startSeconds.toFixed(3)}s – ${event.endSeconds.toFixed(3)}s** (${event.durationSeconds.toFixed(3)}s): ${event.description}`);
+      }
+      lines.push('');
+    }
+  }
+
+  if (markerArtifacts.length > 0) {
+    lines.push('## Markers');
+    lines.push('');
+    for (const artifact of markerArtifacts) {
+      if (artifact.type !== 'marker_added') continue;
+      lines.push(`- **${artifact.label}** at ${artifact.timeSeconds.toFixed(3)}s`);
+    }
+    lines.push('');
+  }
+
+  if (analysisArtifacts.length === 0 && compareArtifacts.length === 0 && findArtifacts.length === 0 && markerArtifacts.length === 0) {
+    lines.push('*No analysis results found in this session. Run some analyses first.*');
+  }
+
+  return lines.join('\n');
+}
+
+function executeReport(
+  dispatch: AppDispatch,
+  parsedArgs: Record<string, unknown>,
+  state: RootState,
+): string {
+  const artifacts = state.agentWorkspace.artifacts;
+  const customTitle = typeof parsedArgs['title'] === 'string' ? parsedArgs['title'] : null;
+  const generatedAt = new Date().toLocaleString();
+  const title = customTitle ?? `AcousticCanvas Session Report — ${generatedAt}`;
+
+  const markdownContent = buildReportMarkdown(title, artifacts, generatedAt);
+
+  dispatch(reportArtifactAdded({
+    type: 'report',
+    id: crypto.randomUUID(),
+    timestamp: new Date().toISOString(),
+    title,
+    markdownContent,
+  }));
+
+  return JSON.stringify({ success: true, title, characterCount: markdownContent.length });
+}
+
 type ParseSuccess = { success: true; value: Record<string, unknown> };
 type ParseFailure = { success: false };
 type ParseJsonResult = ParseSuccess | ParseFailure;
@@ -217,8 +332,10 @@ export async function executeToolCall(
     }
   } else if (toolName === 'workspace') {
     resultJson = executeWorkspace(dispatch, parsedArgs);
+  } else if (toolName === 'report') {
+    resultJson = executeReport(dispatch, parsedArgs, state);
   } else {
-    resultJson = JSON.stringify({ error: `Unknown tool: ${toolName}. Available tools: getState, analyze, compare, find, workspace.` });
+    resultJson = JSON.stringify({ error: `Unknown tool: ${toolName}. Available tools: getState, analyze, compare, find, workspace, report.` });
   }
 
   return {
