@@ -9,6 +9,7 @@ import type {
   AgentArtifactMarker,
   AgentArtifactSelection,
   AgentArtifactCompare,
+  AgentArtifactFind,
 } from './agentWorkspaceSlice';
 import { setActiveMode } from '../navigation/navigationSlice';
 import { activeSelectionSelector } from '../waveform/waveformSelectionSlice';
@@ -129,8 +130,48 @@ function AnalysisCard({ artifact }: { artifact: AgentArtifactAnalysis }): JSX.El
   );
 }
 
+type CompareDiffRow = {
+  label: string;
+  delta: number;
+  unit: string;
+  higherFileId: string;
+  fileIdA: string;
+  fileIdB: string;
+  fileNameA: string;
+  fileNameB: string;
+};
+
+function CompareDiffMetricRow({ row }: { row: CompareDiffRow }): JSX.Element {
+  const winnerName = row.higherFileId === row.fileIdA ? row.fileNameA : row.fileNameB;
+  const sign = row.delta > 0 ? '+' : '';
+  return (
+    <div className={styles.compareDiffRow}>
+      <span className={styles.metricLabel}>{row.label}</span>
+      <span className={styles.compareDiffDelta}>
+        {sign}{Math.abs(row.delta).toFixed(2)} {row.unit}
+      </span>
+      <span className={styles.compareDiffWinner} title={winnerName}>
+        ↑ {winnerName}
+      </span>
+    </div>
+  );
+}
+
 function CompareCard({ artifact }: { artifact: AgentArtifactCompare }): JSX.Element {
   const result = artifact.result;
+
+  const diffRows: CompareDiffRow[] = result.pairwiseDiffs.map((diff) => {
+    const fileA = result.files.find((f) => f.fileId === diff.fileIdA);
+    const fileB = result.files.find((f) => f.fileId === diff.fileIdB);
+    const fileNameA = fileA?.fileName ?? diff.fileIdA;
+    const fileNameB = fileB?.fileName ?? diff.fileIdB;
+    return [
+      { label: 'peak', delta: diff.peakDeltaDb, unit: 'dB', higherFileId: diff.higherPeakFileId, fileIdA: diff.fileIdA, fileIdB: diff.fileIdB, fileNameA, fileNameB },
+      { label: 'rms', delta: diff.rmsDeltaDb, unit: 'dB', higherFileId: diff.higherRmsFileId, fileIdA: diff.fileIdA, fileIdB: diff.fileIdB, fileNameA, fileNameB },
+      { label: 'crest factor', delta: diff.crestFactorDeltaDb, unit: 'dB', higherFileId: diff.higherCrestFactorFileId, fileIdA: diff.fileIdA, fileIdB: diff.fileIdB, fileNameA, fileNameB },
+      { label: 'peak freq', delta: diff.peakFrequencyDeltaHz, unit: 'Hz', higherFileId: diff.higherPeakFrequencyFileId, fileIdA: diff.fileIdA, fileIdB: diff.fileIdB, fileNameA, fileNameB },
+    ];
+  }).flat();
 
   return (
     <div className={`${styles.card} ${styles.cardCompare}`}>
@@ -142,18 +183,18 @@ function CompareCard({ artifact }: { artifact: AgentArtifactCompare }): JSX.Elem
         {result.files.map((file) => (
           <div key={file.fileId} className={styles.compareFileRow}>
             <span className={styles.compareFileName} title={file.fileName}>{file.fileName}</span>
-            <span className={styles.metricValue}>{file.peakDb.toFixed(2)} dBFS pk</span>
-            <span className={styles.metricValue}>{file.rmsDb.toFixed(2)} dBFS rms</span>
+            <span className={styles.metricValue}>{file.peakDb.toFixed(2)} pk</span>
+            <span className={styles.metricValue}>{file.rmsDb.toFixed(2)} rms</span>
+            <span className={styles.metricValue}>{(file.peakFrequencyHz / 1000).toFixed(1)}kHz</span>
           </div>
         ))}
-        {result.pairwiseDiffs.map((diff) => (
-          <div key={`${diff.fileIdA}-${diff.fileIdB}`} className={styles.metricRow}>
-            <span className={styles.metricLabel}>Δ rms</span>
-            <span className={`${styles.metricValue} ${styles.metricValueHighlight}`}>
-              {diff.rmsDeltaDb > 0 ? '+' : ''}{diff.rmsDeltaDb.toFixed(2)} dB
-            </span>
+        {diffRows.length > 0 && (
+          <div className={styles.compareDiffSection}>
+            {diffRows.map((row) => (
+              <CompareDiffMetricRow key={`${row.fileIdA}-${row.fileIdB}-${row.label}`} row={row} />
+            ))}
           </div>
-        ))}
+        )}
       </div>
       <RawDataDrawer data={result} />
     </div>
@@ -211,6 +252,42 @@ function SelectionCard({ artifact }: { artifact: AgentArtifactSelection }): JSX.
   );
 }
 
+function FindCard({ artifact }: { artifact: AgentArtifactFind }): JSX.Element {
+  const result = artifact.result;
+  const kindLabel = result.kind.charAt(0).toUpperCase() + result.kind.slice(1);
+
+  return (
+    <div className={`${styles.card} ${styles.cardFind}`}>
+      <div className={styles.cardHeader}>
+        <span className={`${styles.cardKindTag} ${styles.cardKindTagFind}`}>{kindLabel}</span>
+        <span className={styles.cardTimestamp}>{formatTimestamp(artifact.timestamp)}</span>
+      </div>
+      <div className={styles.cardBody}>
+        <div className={styles.metricRow}>
+          <span className={styles.metricLabel}>events found</span>
+          <span className={`${styles.metricValue} ${styles.metricValueHighlight}`}>{result.eventCount}</span>
+        </div>
+        <div className={styles.metricRow}>
+          <span className={styles.metricLabel}>region</span>
+          <span className={styles.metricValue}>
+            {result.regionStartSeconds.toFixed(3)}s – {result.regionEndSeconds.toFixed(3)}s
+          </span>
+        </div>
+        {result.events.slice(0, 5).map((event, index) => (
+          <div key={index} className={styles.findEventRow}>
+            <span className={styles.findEventTime}>{event.startSeconds.toFixed(3)}s</span>
+            <span className={styles.findEventDesc}>{event.description}</span>
+          </div>
+        ))}
+        {result.eventCount > 5 && (
+          <div className={styles.findEventMore}>+{result.eventCount - 5} more</div>
+        )}
+      </div>
+      <RawDataDrawer data={result} />
+    </div>
+  );
+}
+
 function ArtifactCard({ artifact }: { artifact: AgentArtifact }): JSX.Element {
   if (artifact.type === 'analysis_result') {
     return <AnalysisCard artifact={artifact} />;
@@ -223,6 +300,9 @@ function ArtifactCard({ artifact }: { artifact: AgentArtifact }): JSX.Element {
   }
   if (artifact.type === 'compare_result') {
     return <CompareCard artifact={artifact} />;
+  }
+  if (artifact.type === 'find_result') {
+    return <FindCard artifact={artifact} />;
   }
   return <></>;
 }

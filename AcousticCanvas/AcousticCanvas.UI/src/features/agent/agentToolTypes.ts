@@ -161,3 +161,31 @@ export type CompareResult = {
   pairwiseDiffs: PairwiseDiff[];
   ranAt: string;
 };
+
+export type FindEventKind = 'clipping' | 'silence' | 'loudest' | 'transient';
+
+export type FindInput = {
+  fileId: string;
+  kind: FindEventKind;
+  startSeconds: number | null;
+  endSeconds: number | null;
+};
+
+export type AudioEvent = {
+  kind: string;
+  startSeconds: number;
+  endSeconds: number;
+  durationSeconds: number;
+  description: string;
+  metadata: Record<string, unknown>;
+};
+
+export type FindEventsResult = {
+  fileId: string;
+  kind: string;
+  events: AudioEvent[];
+  eventCount: number;
+  regionStartSeconds: number;
+  regionEndSeconds: number;
+  ranAt: string;
+};

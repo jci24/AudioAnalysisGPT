@@ -10,6 +10,7 @@ export const API_ENDPOINTS = {
     RUN_SPECTROGRAM: 'api/analysis/spectrogram',
     RUN_AGENT_ANALYSIS: 'api/analysis/run',
     RUN_COMPARE: 'api/analysis/compare',
+    RUN_FIND: 'api/analysis/find',
   },
 } as const;
 

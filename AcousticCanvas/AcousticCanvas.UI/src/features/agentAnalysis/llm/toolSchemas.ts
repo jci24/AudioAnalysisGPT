@@ -123,9 +123,41 @@ export const COMPARE_TOOL_SCHEMA: OpenAiToolSchema = {
   },
 };
 
+export const FIND_TOOL_SCHEMA: OpenAiToolSchema = {
+  type: 'function',
+  function: {
+    name: 'find',
+    description: 'Searches a loaded audio file for specific event types and returns a timestamped list of occurrences. Use when the user asks about clipping, silence gaps, the loudest moment, or transient onsets.',
+    parameters: {
+      type: 'object',
+      properties: {
+        fileId: {
+          type: 'string',
+          description: 'ID of the file to search. Obtained from getState() loadedFiles.',
+        },
+        kind: {
+          type: 'string',
+          enum: ['clipping', 'silence', 'loudest', 'transient'],
+          description: 'clipping: finds samples at or near full scale. silence: finds gaps below -60 dBFS. loudest: finds the single loudest 500ms window. transient: finds sudden amplitude onsets.',
+        },
+        startSeconds: {
+          type: 'number',
+          description: 'Start of the region to search in seconds. Omit to search the full file.',
+        },
+        endSeconds: {
+          type: 'number',
+          description: 'End of the region to search in seconds. Omit to search the full file.',
+        },
+      },
+      required: ['fileId', 'kind'],
+    },
+  },
+};
+
 export const ALL_TOOL_SCHEMAS: OpenAiToolSchema[] = [
   GET_STATE_TOOL_SCHEMA,
   ANALYZE_TOOL_SCHEMA,
   COMPARE_TOOL_SCHEMA,
+  FIND_TOOL_SCHEMA,
   WORKSPACE_TOOL_SCHEMA,
 ];

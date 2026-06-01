@@ -3,15 +3,51 @@ import type { OpenAiToolCall } from './openAiClient';
 import { getStateTool } from '../../agent/utils/getStateTool';
 import { callAnalyzeTool } from '../../agent/services/analyzeToolService';
 import { callCompareTool } from '../../agent/services/compareToolService';
+import { callFindTool } from '../../agent/services/findToolService';
 import { applyWorkspaceAction } from '../../agent/utils/workspaceTool';
 import type { AnalysisKind, WorkspaceAction } from '../../agent/agentToolTypes';
-import { analysisArtifactAdded, markerArtifactAdded, selectionArtifactAdded, compareArtifactAdded } from '../agentWorkspaceSlice';
+import { analysisArtifactAdded, markerArtifactAdded, selectionArtifactAdded, compareArtifactAdded, findArtifactAdded } from '../agentWorkspaceSlice';
 
 export type ToolExecutionResult = {
   toolCallId: string;
   toolName: string;
   resultJson: string;
 };
+
+function stripPathToFileName(value: string): string {
+  const lastSlash = Math.max(value.lastIndexOf('/'), value.lastIndexOf('\\'));
+  return lastSlash >= 0 ? value.slice(lastSlash + 1) : value;
+}
+
+function sanitizeResultForLlm(json: string): string {
+  try {
+    const parsed = JSON.parse(json) as unknown;
+    const sanitized = sanitizeValue(parsed);
+    return JSON.stringify(sanitized);
+  } catch {
+    return json;
+  }
+}
+
+function sanitizeValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(sanitizeValue);
+  }
+  if (value !== null && typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    const result: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(obj)) {
+      const isPathField = k === 'fileId' || k === 'fileIdA' || k === 'fileIdB';
+      if (isPathField && typeof v === 'string') {
+        result[k] = stripPathToFileName(v);
+      } else {
+        result[k] = sanitizeValue(v);
+      }
+    }
+    return result;
+  }
+  return value;
+}
 
 function executeGetState(state: RootState): string {
   const result = getStateTool(state);
@@ -161,15 +197,33 @@ export async function executeToolCall(
       const errorMessage = error instanceof Error ? error.message : 'Compare failed';
       resultJson = JSON.stringify({ error: errorMessage });
     }
+  } else if (toolName === 'find') {
+    try {
+      const fileId = typeof parsedArgs['fileId'] === 'string' ? parsedArgs['fileId'] : '';
+      const kind = typeof parsedArgs['kind'] === 'string' ? parsedArgs['kind'] as 'clipping' | 'silence' | 'loudest' | 'transient' : 'clipping';
+      const startSeconds = typeof parsedArgs['startSeconds'] === 'number' ? parsedArgs['startSeconds'] : null;
+      const endSeconds = typeof parsedArgs['endSeconds'] === 'number' ? parsedArgs['endSeconds'] : null;
+      const findResult = await callFindTool({ fileId, kind, startSeconds, endSeconds });
+      dispatch(findArtifactAdded({
+        type: 'find_result',
+        id: crypto.randomUUID(),
+        timestamp: new Date().toISOString(),
+        result: findResult,
+      }));
+      resultJson = JSON.stringify(findResult);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Find failed';
+      resultJson = JSON.stringify({ error: errorMessage });
+    }
   } else if (toolName === 'workspace') {
     resultJson = executeWorkspace(dispatch, parsedArgs);
   } else {
-    resultJson = JSON.stringify({ error: `Unknown tool: ${toolName}. Available tools: getState, analyze, compare, workspace.` });
+    resultJson = JSON.stringify({ error: `Unknown tool: ${toolName}. Available tools: getState, analyze, compare, find, workspace.` });
   }
 
   return {
     toolCallId: toolCall.id,
     toolName,
-    resultJson,
+    resultJson: sanitizeResultForLlm(resultJson),
   };
 }

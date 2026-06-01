@@ -13,6 +13,12 @@ public sealed class SignalAnalysisService
         _importers = importers;
     }
 
+    public SignalFile ImportFile(string filePath)
+    {
+        var importer = ResolveImporter(filePath);
+        return importer.Import(filePath);
+    }
+
     public AnalysisResult Analyze(string filePath)
     {
         var importer = ResolveImporter(filePath);
