@@ -1,17 +1,15 @@
-import type { JSX } from 'react';
-import { useRef, useState, useEffect } from 'react';
+import type { JSX, ChangeEvent } from 'react';
+import { useRef, useState } from 'react';
 import { AudioFileDropzone } from '../audioUpload/AudioFileDropzone';
 import { setActiveView } from '../navigation/navigationSlice';
 import { useAudioUpload } from '../audioUpload/useAudioUpload';
 import { TransportUI } from '../playback/TransportUI';
 import { WaveSurferDisplay } from '../waveform/WaveSurferDisplay';
-import type { WaveSurferDisplayRef } from '../waveform/WaveSurferDisplay';
 import { apiClient } from '../../shared/api/apiClient';
 import { API_ENDPOINTS } from '../../shared/api/apiEndpoints';
 import { useAppSelector, useAppDispatch } from '../../store/reduxHooks';
 import {
   projectFilesSelector,
-  removeAudioFile,
   selectedSignalIdSelector,
 } from '../project/projectSlice';
 import type { AudioFile } from '../../store/projectState';
@@ -21,26 +19,60 @@ import {
   activeSelectionSelector,
 } from '../waveform/waveformSelectionSlice';
 import { Text, Group, ActionIcon, Tooltip } from '@mantine/core';
-import { IconRepeat, IconX, IconFileMusic, IconWaveSine, IconChartLine, IconTrash, IconChevronDown, IconChevronRight, IconUpload, IconRobot } from '@tabler/icons-react';
+import { IconRepeat, IconX, IconFileMusic, IconWaveSine, IconChartLine, IconTrash, IconUpload, IconRobot, IconPlus } from '@tabler/icons-react';
 import { RightSidebar } from './RightSidebar';
 import { ChatPanel } from '../agentAnalysis/ChatPanel';
-import { useRunAnalysis } from '../analysis/useRunAnalysis';
 import {
   analysisResultSelector,
   analysisStatusSelector,
   analysisErrorSelector,
-  analysisClear,
 } from '../analysis/analysisSlice';
 import { SpectrogramPanel } from '../analysis/SpectrogramPanel';
 import { SpectrumPanel } from '../analysis/SpectrumPanel';
+import { useManualPlayback } from './useManualPlayback';
+import { useToolPanels } from './useToolPanels';
+import { useResizablePanel } from './useResizablePanel';
 import styles from './ManualWorkspace.module.scss';
 
 export const ManualWorkspace = (): JSX.Element => {
   const dispatch = useAppDispatch();
   const files = useAppSelector(projectFilesSelector);
   const selectedSignalId = useAppSelector(selectedSignalIdSelector);
-  const uploadedFile = files.find((file) => file.id === selectedSignalId) ?? null;
+  const loopEnabled = useAppSelector(loopEnabledSelector);
+  const activeSelection = useAppSelector(activeSelectionSelector);
+  const analysisResult = useAppSelector(analysisResultSelector);
+  const analysisStatus = useAppSelector(analysisStatusSelector);
+  const analysisError = useAppSelector(analysisErrorSelector);
+
   const { isUploading, uploadFile } = useAudioUpload();
+  const { panelWidth: leftPanelWidth, handleDragHandleMouseDown } = useResizablePanel(220);
+  const {
+    toolPanels,
+    hasSpectrogramPanel,
+    hasSpectrumPanel,
+    handleAddSpectrogramPanel,
+    handleAddSpectrumPanel,
+    handleToolPanelFileSelect,
+    handleToolPanelClose,
+  } = useToolPanels();
+  const {
+    waveSurferRef,
+    isPlaying,
+    currentTime,
+    duration,
+    handleWaveSurferReady,
+    handleWaveSurferTimeUpdate,
+    handleWaveSurferFinish,
+    handlePlay,
+    handlePause,
+    handleSeek,
+    handleSelectFile,
+    handleRemoveFile,
+  } = useManualPlayback(selectedSignalId);
+
+  const addFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [isDraggingFileOver, setIsDraggingFileOver] = useState(false);
+  const [isAgentPanelOpen, setIsAgentPanelOpen] = useState(false);
 
   const handleFileSelected = async (file: File): Promise<void> => {
     const result = await uploadFile(file);
@@ -48,123 +80,25 @@ export const ManualWorkspace = (): JSX.Element => {
       dispatch(setActiveView('import'));
     }
   };
-  const loopEnabled = useAppSelector(loopEnabledSelector);
-  const activeSelection = useAppSelector(activeSelectionSelector);
-  const analysisResult = useAppSelector(analysisResultSelector);
-  const analysisStatus = useAppSelector(analysisStatusSelector);
-  const analysisError = useAppSelector(analysisErrorSelector);
-  const { runAnalysis } = useRunAnalysis();
 
-  const waveSurferRef = useRef<WaveSurferDisplayRef | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [isDraggingFileOver, setIsDraggingFileOver] = useState(false);
-  const [isAgentPanelOpen, setIsAgentPanelOpen] = useState(false);
-  // Resizable left panel
-  const [leftPanelWidth, setLeftPanelWidth] = useState(220);
-  const isDraggingPanelRef = useRef(false);
-
-  const handleDragHandleMouseDown = (): void => {
-    isDraggingPanelRef.current = true;
+  const handleAddFileClick = (): void => {
+    addFileInputRef.current?.click();
   };
 
-  useEffect(() => {
-    const handleMouseMove = (event: MouseEvent): void => {
-      if (!isDraggingPanelRef.current) return;
-      const newWidth = Math.max(140, Math.min(400, event.clientX - 200));
-      setLeftPanelWidth(newWidth);
-    };
-
-    const handleMouseUp = (): void => {
-      isDraggingPanelRef.current = false;
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-
-    return (): void => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, []);
-
-  // Tool panels spawned from the toolbox
-  const [toolPanels, setToolPanels] = useState<Array<{ id: string; type: 'spectrogram' | 'spectrum'; fileId: string | null }>>([]);
-  const hasSpectrogramPanel = toolPanels.some((panel) => panel.type === 'spectrogram');
-  const hasSpectrumPanel = toolPanels.some((panel) => panel.type === 'spectrum');
-
-  const handleAddSpectrogramPanel = (): void => {
-    if (hasSpectrogramPanel) return;
-    const newPanelId = `spectrogram-${Date.now()}`;
-    setToolPanels((prev) => [...prev, { id: newPanelId, type: 'spectrogram', fileId: selectedSignalId ?? null }]);
-  };
-
-  const handleAddSpectrumPanel = (): void => {
-    if (hasSpectrumPanel) return;
-    const newPanelId = `spectrum-${Date.now()}`;
-    setToolPanels((prev) => [...prev, { id: newPanelId, type: 'spectrum', fileId: selectedSignalId ?? null }]);
-  };
-
-  const handleToolPanelFileSelect = (panelId: string, fileId: string | null): void => {
-    setToolPanels((prev) => prev.map((p) => p.id === panelId ? { ...p, fileId } : p));
-  };
-
-  const handleToolPanelClose = (panelId: string): void => {
-    setToolPanels((prev) => prev.filter((p) => p.id !== panelId));
-  };
-
-
-  const audioUrl = uploadedFile
-    ? apiClient.buildUrl(API_ENDPOINTS.AUDIO.GET_FILE(uploadedFile.id))
-    : '';
-
-  const handleWaveSurferReady = (audioDuration: number): void => {
-    setDuration(audioDuration);
-    setCurrentTime(0);
-    setIsPlaying(false);
-  };
-
-  const handleWaveSurferTimeUpdate = (time: number): void => {
-    setCurrentTime(time);
-  };
-
-  const handleWaveSurferFinish = (): void => {
-    setIsPlaying(false);
-  };
-
-  const handlePlay = (): void => {
-    waveSurferRef.current?.play();
-    setIsPlaying(true);
-  };
-
-  const handlePause = (): void => {
-    waveSurferRef.current?.pause();
-    setIsPlaying(false);
-  };
-
-  const handleSeek = (timeSeconds: number): void => {
-    waveSurferRef.current?.seek(timeSeconds);
-    setCurrentTime(timeSeconds);
-  };
-
-  // Auto-run analysis whenever the selected signal changes.
-  useEffect(() => {
-    if (selectedSignalId) {
-      runAnalysis(selectedSignalId);
+  const handleAddFileInputChange = async (event: ChangeEvent<HTMLInputElement>): Promise<void> => {
+    const file = event.target.files?.[0];
+    if (event.target) event.target.value = '';
+    if (file) {
+      await uploadFile(file);
     }
-  }, [selectedSignalId]); // eslint-disable-line react-hooks/exhaustive-deps
+  };
 
-  const handleClearFile = (): void => {
-    waveSurferRef.current?.pause();
-    waveSurferRef.current?.clearSelection();
-    setIsPlaying(false);
-    setCurrentTime(0);
-    setDuration(0);
-    dispatch(analysisClear());
-    if (uploadedFile) {
-      dispatch(removeAudioFile(uploadedFile.id));
-    }
+  const handleAddSpectrogramPanelForActiveFile = (): void => {
+    handleAddSpectrogramPanel(selectedSignalId);
+  };
+
+  const handleAddSpectrumPanelForActiveFile = (): void => {
+    handleAddSpectrumPanel(selectedSignalId);
   };
 
   const handleToggleLoop = (): void => {
@@ -181,19 +115,21 @@ export const ManualWorkspace = (): JSX.Element => {
 
   return (
     <div className={styles.workspaceWithFileList}>
-      {!uploadedFile && (
+      {files.length === 0 && (
         <div className={styles.workspace}>
           <AudioFileDropzone onFileSelected={handleFileSelected} isUploading={isUploading} />
         </div>
       )}
-
-      {uploadedFile && (
+      {files.length > 0 && (
         <>
           <FileListPanel
-            uploadedFile={uploadedFile}
-            onClearFile={handleClearFile}
-            onAddSpectrogram={handleAddSpectrogramPanel}
-            onAddSpectrum={handleAddSpectrumPanel}
+            files={files}
+            selectedSignalId={selectedSignalId}
+            onSelectFile={handleSelectFile}
+            onRemoveFile={handleRemoveFile}
+            onAddFileClick={handleAddFileClick}
+            onAddSpectrogram={handleAddSpectrogramPanelForActiveFile}
+            onAddSpectrum={handleAddSpectrumPanelForActiveFile}
             hasSpectrogramPanel={hasSpectrogramPanel}
             hasSpectrumPanel={hasSpectrumPanel}
             width={leftPanelWidth}
@@ -204,122 +140,158 @@ export const ManualWorkspace = (): JSX.Element => {
             role="separator"
             aria-label="Resize left panel"
           />
+          <input
+            ref={addFileInputRef}
+            type="file"
+            accept=".wav,.mp3,.flac,.aiff,.aif"
+            style={{ display: 'none' }}
+            onChange={handleAddFileInputChange}
+            aria-label="Add audio file"
+          />
           <div className={styles.contentRow}>
-          <div className={styles.mainArea}>
-            <div
-              className={styles.signalViewport}
-              onDragOver={(event) => { event.preventDefault(); setIsDraggingFileOver(true); }}
-              onDragLeave={() => setIsDraggingFileOver(false)}
-              onDrop={(event) => {
-                event.preventDefault();
-                setIsDraggingFileOver(false);
-                const droppedFile = event.dataTransfer.files[0];
-                if (droppedFile) handleFileSelected(droppedFile);
-              }}
-              style={{ position: 'relative' }}
-            >
-              {isDraggingFileOver && (
-                <div className={styles.dropAcceptOverlay}>
-                  <IconUpload size={32} />
-                  <span>Drop to replace file</span>
-                </div>
-              )}
+            <div className={styles.mainArea}>
               <div
-                className={`${styles.signalCard} ${selectedSignalId === uploadedFile.id ? styles.signalCardSelected : ''}`}
+                className={styles.signalViewport}
+                onDragOver={(event) => { event.preventDefault(); setIsDraggingFileOver(true); }}
+                onDragLeave={() => setIsDraggingFileOver(false)}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  setIsDraggingFileOver(false);
+                  const droppedFile = event.dataTransfer.files[0];
+                  if (droppedFile) handleFileSelected(droppedFile);
+                }}
+                style={{ position: 'relative' }}
               >
-                <div className={styles.signalCardHeader}>
-                  <span className={styles.signalCardLabel}>{uploadedFile.name}</span>
-                </div>
-                <div className={styles.signalCardBody}>
-                  <WaveSurferDisplay
-                    fileId={uploadedFile.id}
-                    audioUrl={audioUrl}
-                    onReady={handleWaveSurferReady}
-                    onTimeUpdate={handleWaveSurferTimeUpdate}
-                    onFinish={handleWaveSurferFinish}
-                    displayRef={waveSurferRef}
-                  />
-                </div>
-                {toolPanels.map((panel) => (
-                  panel.type === 'spectrogram' ? (
-                    <SpectrogramPanel
-                      key={panel.id}
-                      panelId={panel.id}
-                      availableFiles={files}
-                      selectedFileId={panel.fileId}
-                      currentTimeSeconds={currentTime}
-                      onSeek={handleSeek}
-                      onFileSelect={handleToolPanelFileSelect}
-                      onClose={handleToolPanelClose}
-                    />
-                  ) : (
-                    <SpectrumPanel
-                      key={panel.id}
-                      panelId={panel.id}
-                      availableFiles={files}
-                      selectedFileId={panel.fileId}
-                      onFileSelect={handleToolPanelFileSelect}
-                      onClose={handleToolPanelClose}
-                    />
-                  )
-                ))}
-                {activeSelection && activeSelection.endSeconds > activeSelection.startSeconds && (
-                  <div className={styles.regionInfoBar}>
-                    <Group gap="xs">
-                      <Text size="xs" c="dimmed">Region:</Text>
-                      <Text size="xs" fw={500}>
-                        {activeSelection.startSeconds.toFixed(3)}s – {activeSelection.endSeconds.toFixed(3)}s
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        ({(activeSelection.endSeconds - activeSelection.startSeconds).toFixed(3)}s)
-                      </Text>
-                    </Group>
+                {isDraggingFileOver && (
+                  <div className={styles.dropAcceptOverlay}>
+                    <IconUpload size={32} />
+                    <span>Drop to add file</span>
                   </div>
                 )}
-              </div>
-            </div>
-            <div className={styles.transportBar}>
-              <TransportUI
-                isPlaying={isPlaying}
-                currentTime={currentTime}
-                duration={duration}
-                isLoading={false}
-                onPlay={handlePlay}
-                onPause={handlePause}
-                onSeek={handleSeek}
-                secondaryControls={
-                  <>
-                    <Tooltip label={loopEnabled ? 'Loop: on' : 'Loop: off'} withArrow position="top">
-                      <ActionIcon
-                        variant={loopEnabled ? 'filled' : 'subtle'}
-                        color={loopEnabled ? 'teal' : 'gray'}
-                        size="sm"
-                        onClick={handleToggleLoop}
-                        aria-label="Toggle loop"
+                {files.map((file) => {
+                  const isActive = file.id === selectedSignalId;
+                  const fileAudioUrl = apiClient.buildUrl(API_ENDPOINTS.AUDIO.GET_FILE(file.id));
+
+                  if (!isActive) {
+                    return (
+                      <div
+                        key={file.id}
+                        className={styles.signalCardInactive}
+                        onClick={() => handleSelectFile(file.id)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleSelectFile(file.id); }}
+                        aria-label={`Switch to ${file.name}`}
                       >
-                        <IconRepeat size={14} />
-                      </ActionIcon>
-                    </Tooltip>
-                    {activeSelection && (
-                      <Tooltip label="Clear selection" withArrow position="top">
+                        <IconFileMusic size={18} className={styles.signalCardInactiveIcon} />
+                        <div className={styles.signalCardInactiveMeta}>
+                          <span className={styles.signalCardInactiveName} title={file.name}>{file.name}</span>
+                          <span className={styles.signalCardInactiveDetail}>
+                            {file.durationSeconds.toFixed(2)}s · {(file.sampleRate / 1000).toFixed(1)} kHz · {file.channels}ch
+                          </span>
+                        </div>
+                        <span className={styles.signalCardInactiveHint}>click to load</span>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={file.id} className={`${styles.signalCard} ${styles.signalCardSelected}`}>
+                      <div className={styles.signalCardHeader}>
+                        <span className={styles.signalCardLabel}>{file.name}</span>
+                      </div>
+                      <div className={styles.signalCardBody}>
+                        <WaveSurferDisplay
+                          fileId={file.id}
+                          audioUrl={fileAudioUrl}
+                          onReady={handleWaveSurferReady}
+                          onTimeUpdate={handleWaveSurferTimeUpdate}
+                          onFinish={handleWaveSurferFinish}
+                          displayRef={waveSurferRef}
+                        />
+                      </div>
+                      {toolPanels.map((panel) => (
+                        panel.type === 'spectrogram' ? (
+                          <SpectrogramPanel
+                            key={panel.id}
+                            panelId={panel.id}
+                            availableFiles={files}
+                            selectedFileId={panel.fileId}
+                            currentTimeSeconds={currentTime}
+                            onSeek={handleSeek}
+                            onFileSelect={handleToolPanelFileSelect}
+                            onClose={handleToolPanelClose}
+                          />
+                        ) : (
+                          <SpectrumPanel
+                            key={panel.id}
+                            panelId={panel.id}
+                            availableFiles={files}
+                            selectedFileId={panel.fileId}
+                            onFileSelect={handleToolPanelFileSelect}
+                            onClose={handleToolPanelClose}
+                          />
+                        )
+                      ))}
+                      {activeSelection && activeSelection.endSeconds > activeSelection.startSeconds && (
+                        <div className={styles.regionInfoBar}>
+                          <Group gap="xs">
+                            <Text size="xs" c="dimmed">Region:</Text>
+                            <Text size="xs" fw={500}>
+                              {activeSelection.startSeconds.toFixed(3)}s – {activeSelection.endSeconds.toFixed(3)}s
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                              ({(activeSelection.endSeconds - activeSelection.startSeconds).toFixed(3)}s)
+                            </Text>
+                          </Group>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className={styles.transportBar}>
+                <TransportUI
+                  isPlaying={isPlaying}
+                  currentTime={currentTime}
+                  duration={duration}
+                  isLoading={false}
+                  onPlay={handlePlay}
+                  onPause={handlePause}
+                  onSeek={handleSeek}
+                  secondaryControls={
+                    <>
+                      <Tooltip label={loopEnabled ? 'Loop: on' : 'Loop: off'} withArrow position="top">
                         <ActionIcon
-                          variant="subtle"
-                          color="gray"
+                          variant={loopEnabled ? 'filled' : 'subtle'}
+                          color={loopEnabled ? 'teal' : 'gray'}
                           size="sm"
-                          onClick={handleClearSelection}
-                          aria-label="Clear selection"
+                          onClick={handleToggleLoop}
+                          aria-label="Toggle loop"
                         >
-                          <IconX size={14} />
+                          <IconRepeat size={14} />
                         </ActionIcon>
                       </Tooltip>
-                    )}
-                  </>
-                }
-              />
+                      {activeSelection && (
+                        <Tooltip label="Clear selection" withArrow position="top">
+                          <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            size="sm"
+                            onClick={handleClearSelection}
+                            aria-label="Clear selection"
+                          >
+                            <IconX size={14} />
+                          </ActionIcon>
+                        </Tooltip>
+                      )}
+                    </>
+                  }
+                />
+              </div>
             </div>
           </div>
-        </div>
-        <RightSidebar
+          <RightSidebar
             analysisResult={analysisResult}
             analysisStatus={analysisStatus}
             analysisError={analysisError}
@@ -346,8 +318,11 @@ export const ManualWorkspace = (): JSX.Element => {
 };
 
 interface FileListPanelProps {
-  uploadedFile: AudioFile | null;
-  onClearFile: () => void;
+  files: AudioFile[];
+  selectedSignalId: string | null;
+  onSelectFile: (fileId: string) => void;
+  onRemoveFile: (fileId: string) => void;
+  onAddFileClick: () => void;
   onAddSpectrogram: () => void;
   onAddSpectrum: () => void;
   hasSpectrogramPanel: boolean;
@@ -356,60 +331,62 @@ interface FileListPanelProps {
 }
 
 const FileListPanel = ({
-  uploadedFile,
-  onClearFile,
+  files,
+  selectedSignalId,
+  onSelectFile,
+  onRemoveFile,
+  onAddFileClick,
   onAddSpectrogram,
   onAddSpectrum,
   hasSpectrogramPanel,
   hasSpectrumPanel,
   width,
 }: FileListPanelProps): JSX.Element => {
-  const [isFileExpanded, setIsFileExpanded] = useState(true);
-
-  const handleToggleExpanded = (): void => {
-    setIsFileExpanded((previous) => !previous);
-  };
-
-  const channelLabels = uploadedFile
-    ? Array.from({ length: uploadedFile.channels }, (_, index) => `Channel ${index + 1}`)
-    : [];
-
   return (
     <div className={styles.fileListPanel} style={{ width }}>
       <Text fw={600} size="sm" mb="md" c="dimmed">FILES</Text>
-      {uploadedFile && (
-        <div className={styles.fileTreeNode}>
-          <div className={styles.fileTreeRow} onClick={handleToggleExpanded}>
-            <span className={styles.fileTreeChevron}>
-              {isFileExpanded ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
-            </span>
-            <IconFileMusic size={16} className={styles.fileTreeFileIcon} />
-            <span className={styles.fileTreeFileName} title={uploadedFile.name}>
-              {uploadedFile.name}
-            </span>
-            <Tooltip label="Remove audio file" withArrow position="right">
-              <ActionIcon
-                variant="subtle"
-                color="red"
-                size="xs"
-                onClick={(event) => { event.stopPropagation(); onClearFile(); }}
-                aria-label="Remove audio file"
-              >
-                <IconTrash size={13} />
-              </ActionIcon>
-            </Tooltip>
-          </div>
-          {isFileExpanded && (
-            <div className={styles.fileTreeChildren}>
-              {channelLabels.map((label) => (
-                <div key={label} className={styles.fileTreeChannelRow}>
-                  <span className={styles.fileTreeChannelLabel}>{label}</span>
-                </div>
-              ))}
+      {files.map((file) => {
+        const isActive = file.id === selectedSignalId;
+        return (
+          <div
+            key={file.id}
+            className={`${styles.fileTreeNode} ${isActive ? styles.fileTreeNodeActive : ''}`}
+            onClick={() => onSelectFile(file.id)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelectFile(file.id); }}
+          >
+            <div className={styles.fileTreeRow}>
+              <IconFileMusic size={16} className={styles.fileTreeFileIcon} />
+              <span className={styles.fileTreeFileName} title={file.name}>
+                {file.name}
+              </span>
+              <Tooltip label="Remove file" withArrow position="right">
+                <ActionIcon
+                  variant="subtle"
+                  color="red"
+                  size="xs"
+                  onClick={(event) => { event.stopPropagation(); onRemoveFile(file.id); }}
+                  aria-label={`Remove ${file.name}`}
+                >
+                  <IconTrash size={13} />
+                </ActionIcon>
+              </Tooltip>
             </div>
-          )}
-        </div>
-      )}
+            <div className={styles.fileTreeChildren}>
+              <div className={styles.fileTreeChannelRow}>
+                <span className={styles.fileTreeChannelLabel}>
+                  {file.durationSeconds.toFixed(2)}s · {(file.sampleRate / 1000).toFixed(1)} kHz · {file.channels}ch
+                </span>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+      <button type="button" className={styles.addFileRow} onClick={onAddFileClick}>
+        <IconPlus size={12} />
+        Add file
+      </button>
 
       <div style={{ marginTop: 24 }}>
         <Text fw={600} size="sm" mb="sm" c="dimmed">TOOLS</Text>

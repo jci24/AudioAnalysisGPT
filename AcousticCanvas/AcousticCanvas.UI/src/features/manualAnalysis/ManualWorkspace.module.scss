@@ -116,6 +116,83 @@
   overflow: hidden;
 }
 
+// Inactive stacked track — compact, no waveform canvas
+.signalCardInactive {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+  animation: fadeSlideIn 0.22s ease both;
+
+  &:hover {
+    border-color: rgba(0, 184, 169, 0.4);
+    background-color: var(--bg-elevated);
+  }
+}
+
+.signalCardInactiveIcon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.signalCardInactiveMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.signalCardInactiveName {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.signalCardInactiveDetail {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.signalCardInactiveHint {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  font-style: italic;
+}
+
+// Add-file row at bottom of file list panel
+.addFileRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 6px 8px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  transition: border-color 0.15s ease, color 0.15s ease;
+  background: none;
+  width: 100%;
+  text-align: left;
+
+  &:hover {
+    border-color: rgba(0, 184, 169, 0.5);
+    color: var(--text-secondary);
+  }
+}
+
 // Generic transport bar — docked below all signal cards, spans full width
 .transportBar {
   border-top: 1px solid var(--border);
@@ -148,6 +225,18 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   overflow: hidden;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+
+  &:hover {
+    border-color: rgba(0, 184, 169, 0.4);
+  }
+}
+
+.fileTreeNodeActive {
+  border-color: #00b8a9;
+  border-left-width: 3px;
 }
 
 .fileTreeRow {
