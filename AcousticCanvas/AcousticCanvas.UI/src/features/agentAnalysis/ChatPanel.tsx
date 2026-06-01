@@ -10,6 +10,7 @@ import { activeSelectionSelector } from '../waveform/waveformSelectionSlice';
 import type { ChatMessage } from './chatSlice';
 import { ATTACH_ACCEPT } from './chatAttachments';
 import { useChatInput } from './useChatInput';
+import type { MentionCandidate } from './useChatInput';
 import styles from './ChatPanel.module.scss';
 
 const SUGGESTION_PROMPTS = [
@@ -127,6 +128,35 @@ function EmptyState({ onSuggestionClick }: { onSuggestionClick: (text: string) =
   );
 }
 
+function MentionDropdown({
+  candidates,
+  selectedIndex,
+  onSelect,
+}: {
+  candidates: MentionCandidate[];
+  selectedIndex: number;
+  onSelect: (candidate: MentionCandidate) => void;
+}): JSX.Element {
+  return (
+    <div className={styles.mentionDropdown}>
+      {candidates.map((candidate, index) => (
+        <button
+          key={candidate.fileId}
+          type="button"
+          className={`${styles.mentionDropdownItem} ${index === selectedIndex ? styles.mentionDropdownItemSelected : ''}`}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            onSelect(candidate);
+          }}
+        >
+          <IconFileMusic size={12} className={styles.mentionDropdownIcon} />
+          <span className={styles.mentionDropdownName}>{candidate.fileName}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function ChatPanel(): JSX.Element {
   const messages = useAppSelector(chatMessagesSelector);
   const isThinking = useAppSelector(chatIsThinkingSelector);
@@ -139,9 +169,13 @@ export function ChatPanel(): JSX.Element {
     canSend,
     textareaRef,
     fileInputRef,
+    mentionDropdownCandidates,
+    mentionDropdownSelectedIndex,
     handleTextareaInput,
     handleKeyDown,
     handleSuggestionClick,
+    handleMentionSelect,
+    handleCursorChange,
     handleAttachClick,
     handleFileInputChange,
     handleRemoveAttachment,
@@ -222,6 +256,13 @@ export function ChatPanel(): JSX.Element {
             ))}
           </div>
         )}
+        {mentionDropdownCandidates.length > 0 && (
+          <MentionDropdown
+            candidates={mentionDropdownCandidates}
+            selectedIndex={mentionDropdownSelectedIndex}
+            onSelect={handleMentionSelect}
+          />
+        )}
         <div className={styles.inputRow}>
           <button
             type="button"
@@ -236,9 +277,16 @@ export function ChatPanel(): JSX.Element {
           <textarea
             ref={textareaRef}
             className={styles.textarea}
-            placeholder="Ask the agent…"
+            placeholder="Ask the agent… (@ to mention a file)"
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
+            onChange={(e) => {
+              setInputValue(e.target.value);
+              handleCursorChange(e.target.selectionStart ?? e.target.value.length);
+            }}
+            onSelect={(e) => {
+              const target = e.target as HTMLTextAreaElement;
+              handleCursorChange(target.selectionStart ?? inputValue.length);
+            }}
             onInput={handleTextareaInput}
             onKeyDown={handleKeyDown}
             rows={1}

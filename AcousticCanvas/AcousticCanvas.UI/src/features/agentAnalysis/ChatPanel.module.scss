@@ -528,3 +528,51 @@
   opacity: 0.55;
   text-align: center;
 }
+
+// ─── @mention dropdown ────────────────────────────────────
+
+.mentionDropdown {
+  margin-bottom: 6px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.mentionDropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.1s ease;
+
+  &:hover {
+    background-color: var(--bg-elevated);
+  }
+}
+
+.mentionDropdownItemSelected {
+  background-color: rgba(0, 184, 169, 0.12);
+  color: #00b8a9;
+}
+
+.mentionDropdownIcon {
+  flex-shrink: 0;
+  color: #00b8a9;
+  opacity: 0.8;
+}
+
+.mentionDropdownName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
