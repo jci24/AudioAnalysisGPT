@@ -121,6 +121,8 @@ export type AgentAnalysisResult = {
   fileId: string;
   regionStart: number | null;
   regionEnd: number | null;
+  parameters?: Record<string, unknown>;
+  fromCache?: boolean;
   summary: Record<string, unknown>;
   ranAt: string;
 };

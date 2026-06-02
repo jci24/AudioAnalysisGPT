@@ -14,6 +14,7 @@ import {
   markerArtifactAdded,
   selectionArtifactAdded,
 } from './agentWorkspaceSlice';
+import { routeIntent } from './llm/intentRouter';
 
 export type ToolRunnerIntent =
   | 'get_state'
@@ -25,26 +26,23 @@ export type ToolRunnerIntent =
   | 'unknown';
 
 function classifyIntent(userText: string): ToolRunnerIntent {
-  const lowered = userText.toLowerCase();
+  const routed = routeIntent(userText);
 
-  if (lowered.includes('spectrum') || lowered.includes('fft') || lowered.includes('frequency')) {
-    return 'analyze_spectrum';
+  if (routed.toolName === 'analyze') {
+    if (routed.args.kind === 'file_info') return 'analyze_file_info';
+    if (routed.args.kind === 'level') return 'analyze_level';
+    if (routed.args.kind === 'spectrum') return 'analyze_spectrum';
   }
-  if (lowered.includes('peak') || lowered.includes('level') || lowered.includes('rms') || lowered.includes('loudness')) {
-    return 'analyze_level';
+
+  if (routed.toolName === 'workspace') {
+    if (routed.args.action === 'add_marker') return 'add_marker';
+    if (routed.args.action === 'set_selection') return 'set_selection';
   }
-  if (lowered.includes('file') || lowered.includes('format') || lowered.includes('sample rate') || lowered.includes('duration') || lowered.includes('what is loaded') || lowered.includes('info')) {
-    return 'analyze_file_info';
-  }
-  if (lowered.includes('mark') || lowered.includes('add marker') || lowered.includes('pin')) {
-    return 'add_marker';
-  }
-  if (lowered.includes('select') || lowered.includes('region') || lowered.includes('loop')) {
-    return 'set_selection';
-  }
-  if (lowered.includes('state') || lowered.includes('workspace') || lowered.includes('what') || lowered.includes('show')) {
+
+  if (routed.toolName === 'getState') {
     return 'get_state';
   }
+
   return 'unknown';
 }
 
@@ -75,7 +73,21 @@ function buildAnalysisResponse(result: AgentAnalysisResult): string {
     ? ` (region ${result.regionStart.toFixed(3)}s – ${result.regionEnd.toFixed(3)}s)`
     : ' (full file)';
 
-  return `**${kindLabel}${regionText}:**\n${summaryLines.join('\n')}`;
+  const parameterEntries = Object.entries(result.parameters ?? {})
+    .filter(([, value]) => value !== null && value !== undefined)
+    .map(([key, value]) => {
+      const formattedKey = key.replace(/([A-Z])/g, ' $1').toLowerCase();
+      const formattedValue = typeof value === 'number' ? (Number.isInteger(value) ? String(value) : value.toFixed(4)) : String(value);
+      return `${formattedKey}: ${formattedValue}`;
+    });
+
+  const parametersText = parameterEntries.length > 0
+    ? `\nParameters: ${parameterEntries.join(', ')}`
+    : '';
+
+  const cacheText = result.fromCache ? '\nResult reused from cache.' : '';
+
+  return `**${kindLabel}${regionText}:**\n${summaryLines.join('\n')}${parametersText}${cacheText}`;
 }
 
 function buildMarkerResponse(label: string, timeSeconds: number): string {
@@ -144,14 +156,15 @@ async function runAnalyze(
       content: `analyze("${kind}") → result received`,
     }));
 
+    const artifactId = crypto.randomUUID();
     dispatch(analysisArtifactAdded({
       type: 'analysis_result',
-      id: crypto.randomUUID(),
+      id: artifactId,
       timestamp: new Date().toISOString(),
       result,
     }));
 
-    return buildAnalysisResponse(result);
+    return `${buildAnalysisResponse(result)}\n\n[analysis_result:${artifactId}]`;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Analysis failed';
 
@@ -202,16 +215,17 @@ async function runAddMarker(
     content: `workspace("add_marker") → marker added at ${timeSeconds.toFixed(3)}s`,
   }));
 
+  const artifactId = crypto.randomUUID();
   dispatch(markerArtifactAdded({
     type: 'marker_added',
-    id: crypto.randomUUID(),
+    id: artifactId,
     timestamp: new Date().toISOString(),
     fileId,
     timeSeconds,
     label,
   }));
 
-  return buildMarkerResponse(label, timeSeconds);
+  return `${buildMarkerResponse(label, timeSeconds)}\n\n[marker_added:${artifactId}]`;
 }
 
 async function runSetSelection(
@@ -250,15 +264,16 @@ async function runSetSelection(
     content: `workspace("set_selection") → region set`,
   }));
 
+  const artifactId = crypto.randomUUID();
   dispatch(selectionArtifactAdded({
     type: 'selection_set',
-    id: crypto.randomUUID(),
+    id: artifactId,
     timestamp: new Date().toISOString(),
     startSeconds,
     endSeconds,
   }));
 
-  return buildSelectionResponse(startSeconds, endSeconds);
+  return `${buildSelectionResponse(startSeconds, endSeconds)}\n\n[selection_set:${artifactId}]`;
 }
 
 export async function runAgentToolLoop(

@@ -4,6 +4,8 @@ import type { OpenAiMessage } from './openAiClient';
 import { ALL_TOOL_SCHEMAS } from './toolSchemas';
 import { SYSTEM_PROMPT } from './systemPrompt';
 import { executeToolCall } from './toolExecutor';
+import type { ArtifactReference } from './toolExecutor';
+import { buildDeterministicRoutingHint } from './intentRouter';
 import {
   toolCallStarted,
   toolCallFinished,
@@ -20,10 +22,34 @@ export async function runLlmToolLoop(
 ): Promise<void> {
   const conversationMessages: OpenAiMessage[] = [
     { role: 'system', content: SYSTEM_PROMPT },
-    { role: 'user', content: userText },
   ];
 
+  const routingHint = buildDeterministicRoutingHint(userText);
+  if (routingHint) {
+    conversationMessages.push({ role: 'system', content: routingHint });
+  }
+
+  conversationMessages.push({ role: 'user', content: userText });
+
   let iterationCount = 0;
+  const turnArtifactRefs: ArtifactReference[] = [];
+
+  const buildEvidenceSuffix = (): string => {
+    if (turnArtifactRefs.length === 0) {
+      return '';
+    }
+
+    const uniqueRefs = turnArtifactRefs.filter((ref, index, refs) =>
+      refs.findIndex((candidate) => candidate.artifactId === ref.artifactId) === index,
+    );
+
+    if (uniqueRefs.length === 0) {
+      return '';
+    }
+
+    const tokens = uniqueRefs.map((ref) => `[${ref.artifactType}:${ref.artifactId}]`);
+    return `\n\n${tokens.join(', ')}`;
+  };
 
   while (iterationCount < MAX_TOOL_ITERATIONS) {
     iterationCount += 1;
@@ -60,7 +86,7 @@ export async function runLlmToolLoop(
     const assistantMessage = choice.message;
 
     if (choice.finish_reason === 'stop' || !assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
-      const finalContent = assistantMessage.content ?? 'Analysis complete.';
+      const finalContent = (assistantMessage.content ?? 'Analysis complete.') + buildEvidenceSuffix();
       dispatch(assistantMessageReceived({
         id: crypto.randomUUID(),
         content: finalContent,
@@ -88,6 +114,7 @@ export async function runLlmToolLoop(
 
       const currentState = getState();
       const executionResult = await executeToolCall(toolCall, dispatch, currentState);
+      turnArtifactRefs.push(...executionResult.artifactRefs);
 
       const resultParsed = JSON.parse(executionResult.resultJson) as Record<string, unknown>;
       const hasError = 'error' in resultParsed;

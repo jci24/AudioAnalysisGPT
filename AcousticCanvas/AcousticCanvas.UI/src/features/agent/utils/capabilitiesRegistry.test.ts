@@ -70,8 +70,8 @@ describe('isEventKindSupported', () => {
   it('returns true for supported kinds', () => {
     expect(isEventKindSupported('clipping')).toBe(true);
     expect(isEventKindSupported('silence')).toBe(true);
-    expect(isEventKindSupported('loudest_region')).toBe(true);
-    expect(isEventKindSupported('clicks')).toBe(true);
+    expect(isEventKindSupported('loudest')).toBe(true);
+    expect(isEventKindSupported('transient')).toBe(true);
   });
 
   it('returns false for unsupported kinds', () => {

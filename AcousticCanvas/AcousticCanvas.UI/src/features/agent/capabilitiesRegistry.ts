@@ -69,17 +69,17 @@ const EVENT_KINDS: EventKindEntry[] = [
     },
   },
   {
-    kind: 'loudest_region',
+    kind: 'loudest',
     description: 'Locates the time window with the highest RMS energy in the file.',
     defaultOptions: {
       windowSeconds: 1.0,
     },
   },
   {
-    kind: 'clicks',
-    description: 'Detects transient click artifacts caused by sudden discontinuities in the waveform.',
+    kind: 'transient',
+    description: 'Detects sudden onsets and transient regions in the waveform.',
     defaultOptions: {
-      sensitivityDb: 20,
+      onsetThresholdDb: 12,
     },
   },
 ];
