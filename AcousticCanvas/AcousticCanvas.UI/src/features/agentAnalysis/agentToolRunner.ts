@@ -30,8 +30,12 @@ function classifyIntent(userText: string): ToolRunnerIntent {
 
   if (routed.toolName === 'analyze') {
     if (routed.args.kind === 'file_info') return 'analyze_file_info';
-    if (routed.args.kind === 'level') return 'analyze_level';
-    if (routed.args.kind === 'spectrum') return 'analyze_spectrum';
+    if (routed.args.kind === 'loudness' || routed.args.kind === 'peaks' || routed.args.kind === 'dynamics' || routed.args.kind === 'stereo_phase' || routed.args.kind === 'distortion') {
+      return 'analyze_level';
+    }
+    if (routed.args.kind === 'spectral_balance' || routed.args.kind === 'noise' || routed.args.kind === 'dialogue_clarity') {
+      return 'analyze_spectrum';
+    }
   }
 
   if (routed.toolName === 'workspace') {

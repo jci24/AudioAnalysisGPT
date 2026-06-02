@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildDeterministicRoutingHint, routeIntent } from './intentRouter';
+import { buildDeterministicRoutingHint, routeIntent, shouldForceNoToolResponse } from './intentRouter';
 import { INTENT_ROUTING_FIXTURES } from './intentRouting.fixtures';
 
 describe('routeIntent', () => {
@@ -27,5 +27,17 @@ describe('buildDeterministicRoutingHint', () => {
   it('returns null for unknown intents', () => {
     const hint = buildDeterministicRoutingHint('Define crest factor in plain terms');
     expect(hint).toBeNull();
+  });
+});
+
+describe('shouldForceNoToolResponse', () => {
+  it('returns true for imperative negation commands', () => {
+    expect(shouldForceNoToolResponse("Don't add a marker.")).toBe(true);
+    expect(shouldForceNoToolResponse('Do not check clipping.')).toBe(true);
+  });
+
+  it('returns false for normal analysis requests', () => {
+    expect(shouldForceNoToolResponse('Is this too loud?')).toBe(false);
+    expect(shouldForceNoToolResponse('Find clicks.')).toBe(false);
   });
 });

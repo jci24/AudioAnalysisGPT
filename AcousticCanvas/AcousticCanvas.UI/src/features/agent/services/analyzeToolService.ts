@@ -7,11 +7,13 @@ const analysisCache = new Map<string, AgentAnalysisResult>();
 function buildAnalyzeCacheKey(input: AnalyzeInput): string {
   const start = input.startSeconds ?? null;
   const end = input.endSeconds ?? null;
+  const focus = input.focus ?? null;
   return JSON.stringify({
     kind: input.kind,
     fileId: input.fileId,
     startSeconds: start,
     endSeconds: end,
+    focus,
   });
 }
 
@@ -51,6 +53,7 @@ export async function callAnalyzeTool(input: AnalyzeInput): Promise<AgentAnalysi
             fftSize: 8192,
             overlap: 0.5,
             windowType: 'hann',
+            spectralFocus: input.focus ?? null,
           }
         : {}),
       regionStartSeconds: input.startSeconds,

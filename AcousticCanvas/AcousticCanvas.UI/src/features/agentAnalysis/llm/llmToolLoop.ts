@@ -5,7 +5,8 @@ import { ALL_TOOL_SCHEMAS } from './toolSchemas';
 import { SYSTEM_PROMPT } from './systemPrompt';
 import { executeToolCall } from './toolExecutor';
 import type { ArtifactReference } from './toolExecutor';
-import { buildDeterministicRoutingHint } from './intentRouter';
+import { buildDeterministicRoutingHint, routeIntent, shouldForceNoToolResponse } from './intentRouter';
+import { applyGroundingGuardrails } from './responseGuardrails';
 import {
   toolCallStarted,
   toolCallFinished,
@@ -24,15 +25,47 @@ export async function runLlmToolLoop(
     { role: 'system', content: SYSTEM_PROMPT },
   ];
 
-  const routingHint = buildDeterministicRoutingHint(userText);
+  const routedIntent = routeIntent(userText);
+  const routingHint = routedIntent.confidence === 'low' ? null : buildDeterministicRoutingHint(userText);
   if (routingHint) {
     conversationMessages.push({ role: 'system', content: routingHint });
   }
 
   conversationMessages.push({ role: 'user', content: userText });
 
+  if (shouldForceNoToolResponse(userText)) {
+    try {
+      const noToolResponse = await callOpenAiChat(apiKey, {
+        messages: conversationMessages,
+        tools: ALL_TOOL_SCHEMAS,
+        tool_choice: 'none',
+        temperature: 0.2,
+        max_tokens: 512,
+      });
+
+      const noToolChoice = noToolResponse.choices[0];
+      const baseContent = noToolChoice?.message.content ?? 'Understood. I will not run that action.';
+      const guardedContent = applyGroundingGuardrails(baseContent, []);
+      dispatch(assistantMessageReceived({
+        id: crypto.randomUUID(),
+        content: guardedContent,
+        timestamp: new Date().toISOString(),
+      }));
+      return;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      dispatch(assistantMessageReceived({
+        id: crypto.randomUUID(),
+        content: `Failed to reach the OpenAI API: ${errorMessage}`,
+        timestamp: new Date().toISOString(),
+      }));
+      return;
+    }
+  }
+
   let iterationCount = 0;
   const turnArtifactRefs: ArtifactReference[] = [];
+  const turnToolOutputs: unknown[] = [];
 
   const buildEvidenceSuffix = (): string => {
     if (turnArtifactRefs.length === 0) {
@@ -86,7 +119,9 @@ export async function runLlmToolLoop(
     const assistantMessage = choice.message;
 
     if (choice.finish_reason === 'stop' || !assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
-      const finalContent = (assistantMessage.content ?? 'Analysis complete.') + buildEvidenceSuffix();
+      const baseContent = assistantMessage.content ?? 'Analysis complete.';
+      const guardedContent = applyGroundingGuardrails(baseContent, turnToolOutputs);
+      const finalContent = guardedContent + buildEvidenceSuffix();
       dispatch(assistantMessageReceived({
         id: crypto.randomUUID(),
         content: finalContent,
@@ -117,6 +152,7 @@ export async function runLlmToolLoop(
       turnArtifactRefs.push(...executionResult.artifactRefs);
 
       const resultParsed = JSON.parse(executionResult.resultJson) as Record<string, unknown>;
+      turnToolOutputs.push(resultParsed);
       const hasError = 'error' in resultParsed;
 
       dispatch(toolCallFinished({

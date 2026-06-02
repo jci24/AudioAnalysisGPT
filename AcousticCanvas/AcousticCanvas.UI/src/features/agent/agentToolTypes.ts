@@ -109,11 +109,32 @@ export type WorkspaceResult = {
 
 export type AnalysisKind = 'file_info' | 'level' | 'spectrum';
 
+export type SemanticAnalyzeKind =
+  | 'loudness'
+  | 'peaks'
+  | 'dynamics'
+  | 'spectral_balance'
+  | 'noise'
+  | 'stereo_phase'
+  | 'distortion'
+  | 'dialogue_clarity';
+
+export type SpectralFocus =
+  | 'general'
+  | 'muddy'
+  | 'boomy'
+  | 'boxy'
+  | 'harsh'
+  | 'sibilant'
+  | 'thin'
+  | 'dull';
+
 export type AnalyzeInput = {
   kind: AnalysisKind;
   fileId: string;
   startSeconds: number | null;
   endSeconds: number | null;
+  focus?: SpectralFocus | null;
 };
 
 export type AgentAnalysisResult = {

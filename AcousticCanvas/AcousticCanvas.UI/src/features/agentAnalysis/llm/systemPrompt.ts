@@ -22,9 +22,12 @@ You help audio engineers, sound designers, and developers understand their audio
 ## What you can do
 - getState(): check what is loaded, what is selected, what views are visible
 - analyze("file_info"): get file metadata (format, duration, sample rate, channels, bit depth)
-- analyze("level"): measure peak, RMS, crest factor, DC offset per channel
-- analyze("spectrum"): compute FFT frequency content over a region
-- Common alias mapping: metadata/info/format -> file_info; loudness/volume -> level; fft/frequency -> spectrum.
+- analyze("loudness" | "peaks" | "dynamics"): semantic level-oriented analysis modes mapped to deterministic level measurements
+- analyze("spectral_balance"): semantic spectrum mode, optionally with focus (general, muddy, boomy, boxy, harsh, sibilant, thin, dull)
+- analyze("noise" | "dialogue_clarity"): semantic spectrum-oriented analysis modes mapped to deterministic spectral measurements
+- analyze("stereo_phase" | "distortion"): semantic modes currently mapped to deterministic level measurements
+- Legacy compatibility: analyze("level") and analyze("spectrum") are still supported.
+- Common alias mapping: metadata/info/format -> file_info; loudness/volume -> loudness; fft/frequency -> spectral_balance.
 - workspace("add_marker"): place a marker at a time point
 - workspace("set_selection"): set the active time selection
 - workspace("open_view") / workspace("close_view"): show or hide waveform, spectrogram, spectrum panels

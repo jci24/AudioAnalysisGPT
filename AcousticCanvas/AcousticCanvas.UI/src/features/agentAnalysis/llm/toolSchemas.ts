@@ -27,15 +27,20 @@ export const ANALYZE_TOOL_SCHEMA: OpenAiToolSchema = {
   type: 'function',
   function: {
     name: 'analyze',
-    description: 'Runs a named analysis on the active file or a selected region and returns measured results. Supported kinds: file_info (metadata), level (peak, RMS, crest factor, DC offset), spectrum (FFT frequency content).',
+    description: 'Runs a named analysis on the active file or a selected region and returns measured results. Supports both legacy kinds (file_info, level, spectrum) and semantic kinds (loudness, peaks, dynamics, spectral_balance, noise, stereo_phase, distortion, dialogue_clarity).',
     strict: true,
     parameters: {
       type: 'object',
       properties: {
         kind: {
           type: 'string',
-          enum: ['file_info', 'level', 'spectrum'],
-          description: 'The type of analysis to run.',
+          enum: ['file_info', 'level', 'spectrum', 'loudness', 'peaks', 'dynamics', 'spectral_balance', 'noise', 'stereo_phase', 'distortion', 'dialogue_clarity'],
+          description: 'The type of analysis to run. Semantic kinds are mapped to deterministic backend analyzers.',
+        },
+        focus: {
+          type: ['string', 'null'],
+          enum: ['general', 'muddy', 'boomy', 'boxy', 'harsh', 'sibilant', 'thin', 'dull', null],
+          description: 'Optional semantic focus for spectral_balance-style requests. Ignored for kinds that do not use focus.',
         },
         fileId: {
           type: 'string',
@@ -50,7 +55,7 @@ export const ANALYZE_TOOL_SCHEMA: OpenAiToolSchema = {
           description: 'End of the region to analyse in seconds. Omit to analyse the full file.',
         },
       },
-      required: ['kind', 'fileId', 'startSeconds', 'endSeconds'],
+      required: ['kind', 'focus', 'fileId', 'startSeconds', 'endSeconds'],
       additionalProperties: false,
     },
   },

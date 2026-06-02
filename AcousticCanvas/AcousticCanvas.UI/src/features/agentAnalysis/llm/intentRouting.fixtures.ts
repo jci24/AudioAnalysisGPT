@@ -15,7 +15,7 @@ export const INTENT_ROUTING_FIXTURES: IntentRoutingFixture[] = [
     user: 'Is this too loud?',
     expected: {
       toolName: 'analyze',
-      args: { kind: 'level' },
+      args: { kind: 'loudness' },
     },
   },
   {
@@ -23,7 +23,7 @@ export const INTENT_ROUTING_FIXTURES: IntentRoutingFixture[] = [
     user: 'Check the loudness.',
     expected: {
       toolName: 'analyze',
-      args: { kind: 'level' },
+      args: { kind: 'loudness' },
     },
   },
   {
@@ -31,7 +31,7 @@ export const INTENT_ROUTING_FIXTURES: IntentRoutingFixture[] = [
     user: 'Can you run FFT around this region?',
     expected: {
       toolName: 'analyze',
-      args: { kind: 'spectrum' },
+      args: { kind: 'spectral_balance', focus: 'general' },
     },
   },
   {
@@ -91,11 +91,59 @@ export const INTENT_ROUTING_FIXTURES: IntentRoutingFixture[] = [
     },
   },
   {
+    name: 'workspace-add-marker-negated',
+    user: "Don't add a marker.",
+    expected: {
+      toolName: 'unknown',
+      args: {},
+    },
+  },
+  {
     name: 'workspace-set-selection',
     user: 'Set loop region from selection.',
     expected: {
       toolName: 'workspace',
       args: { action: 'set_selection' },
+    },
+  },
+  {
+    name: 'find-clipping-negated',
+    user: 'Do not check clipping right now.',
+    expected: {
+      toolName: 'unknown',
+      args: {},
+    },
+  },
+  {
+    name: 'clip-ambiguity-duration-question',
+    user: 'How long is this clip?',
+    expected: {
+      toolName: 'analyze',
+      args: { kind: 'file_info' },
+    },
+  },
+  {
+    name: 'compare-different-between',
+    user: 'What is the difference between these takes?',
+    expected: {
+      toolName: 'compare',
+      args: {},
+    },
+  },
+  {
+    name: 'spectral-balance-boxy',
+    user: 'The dialogue feels boxy.',
+    expected: {
+      toolName: 'analyze',
+      args: { kind: 'spectral_balance', focus: 'boxy' },
+    },
+  },
+  {
+    name: 'spectral-balance-congested',
+    user: 'Why does this feel congested?',
+    expected: {
+      toolName: 'analyze',
+      args: { kind: 'spectral_balance', focus: 'muddy' },
     },
   },
   {

@@ -1,7 +1,10 @@
 export type RoutedToolHint =
   | {
       toolName: 'analyze';
-      args: { kind: 'file_info' | 'level' | 'spectrum' };
+      args: {
+        kind: 'file_info' | 'loudness' | 'peaks' | 'dynamics' | 'spectral_balance' | 'noise' | 'stereo_phase' | 'distortion' | 'dialogue_clarity';
+        focus?: 'general' | 'muddy' | 'boomy' | 'boxy' | 'harsh' | 'sibilant' | 'thin' | 'dull';
+      };
       confidence: 'high' | 'medium';
       reason: string;
     }
@@ -53,6 +56,20 @@ function includesAny(text: string, keywords: string[]): boolean {
   return keywords.some((keyword) => matchesKeyword(text, keyword));
 }
 
+function hasImperativeNegation(text: string): boolean {
+  const pattern = /\b(?:don't|do not|dont|never)\s+(?:please\s+)?(?:add|set|find|check|run|compare|show|open|close|select)\b/i;
+  return pattern.test(text);
+}
+
+export function shouldForceNoToolResponse(userText: string): boolean {
+  const normalized = userText.trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  return hasImperativeNegation(normalized);
+}
+
 export function routeIntent(userText: string): RoutedToolHint {
   const normalized = userText.trim().toLowerCase();
 
@@ -65,7 +82,16 @@ export function routeIntent(userText: string): RoutedToolHint {
     };
   }
 
-  if (includesAny(normalized, ['compare', 'comparison', 'versus', 'vs ', 'difference', 'different between'])) {
+  if (hasImperativeNegation(normalized)) {
+    return {
+      toolName: 'unknown',
+      args: {},
+      confidence: 'low',
+      reason: 'Imperative negation detected; skipping deterministic routing.',
+    };
+  }
+
+  if (includesAny(normalized, ['compare', 'comparison', 'versus', 'vs', 'difference', 'difference between', 'different between'])) {
     return {
       toolName: 'compare',
       args: {},
@@ -92,7 +118,7 @@ export function routeIntent(userText: string): RoutedToolHint {
     };
   }
 
-  if (includesAny(normalized, ['clipping', 'clip', 'distortion', 'distorted'])) {
+  if (includesAny(normalized, ['clipping', 'clipped', 'distortion', 'distorted', 'overload'])) {
     return {
       toolName: 'find',
       args: { kind: 'clipping' },
@@ -128,25 +154,50 @@ export function routeIntent(userText: string): RoutedToolHint {
     };
   }
 
-  if (includesAny(normalized, ['spectrum', 'fft', 'frequency', 'spectral', 'harsh', 'muddy', 'sibilance', 'boomy'])) {
+  if (includesAny(normalized, ['spectrum', 'fft', 'frequency', 'spectral', 'harsh', 'muddy', 'sibilance', 'boomy', 'boxy', 'dull', 'piercing', 'congested', 'low-mid', 'low mid', 'overwhelming bass', 'bass is overwhelming'])) {
+    const focus = includesAny(normalized, ['muddy', 'muddiness', 'congested', 'low-mid', 'low mid'])
+      ? 'muddy'
+      : includesAny(normalized, ['boomy', 'boominess', 'overwhelming bass', 'bass is overwhelming'])
+        ? 'boomy'
+        : includesAny(normalized, ['boxy', 'boxiness'])
+          ? 'boxy'
+          : includesAny(normalized, ['harsh', 'harshness', 'piercing'])
+            ? 'harsh'
+            : includesAny(normalized, ['sibilance', 'sibilant'])
+              ? 'sibilant'
+              : includesAny(normalized, ['thin', 'thinness'])
+                ? 'thin'
+                : includesAny(normalized, ['dull', 'dullness'])
+                  ? 'dull'
+                  : 'general';
+
     return {
       toolName: 'analyze',
-      args: { kind: 'spectrum' },
+      args: {
+        kind: 'spectral_balance',
+        focus,
+      },
       confidence: 'medium',
       reason: 'The prompt asks about spectral content or tonal balance.',
     };
   }
 
   if (includesAny(normalized, ['loudness', 'too loud', 'peak', 'true peak', 'rms', 'crushed', 'dynamic range'])) {
+    const semanticKind = includesAny(normalized, ['peak', 'true peak'])
+      ? 'peaks'
+      : includesAny(normalized, ['dynamic range', 'crushed'])
+        ? 'dynamics'
+        : 'loudness';
+
     return {
       toolName: 'analyze',
-      args: { kind: 'level' },
+      args: { kind: semanticKind },
       confidence: 'medium',
       reason: 'The prompt asks about amplitude or dynamics metrics.',
     };
   }
 
-  if (includesAny(normalized, ['metadata', 'file info', 'format', 'sample rate', 'duration', 'channels', 'bit depth'])) {
+  if (includesAny(normalized, ['metadata', 'file info', 'format', 'sample rate', 'duration', 'channels', 'bit depth', 'how long', 'length'])) {
     return {
       toolName: 'analyze',
       args: { kind: 'file_info' },
@@ -178,21 +229,26 @@ export function buildDeterministicRoutingHint(userText: string): string | null {
     return null;
   }
 
+  const intro = routed.confidence === 'high'
+    ? 'Deterministic routing hint (high confidence):'
+    : 'Optional routing hint (medium confidence):';
+
   if (routed.toolName === 'analyze') {
-    return `Deterministic routing hint: this request likely maps to analyze(kind="${routed.args.kind}"). Use getState() first to obtain fileId, then run the tool.`;
+    const focusText = routed.args.focus ? `, focus="${routed.args.focus}"` : '';
+    return `${intro} this request likely maps to analyze(kind="${routed.args.kind}"${focusText}). Use getState() first to obtain fileId, then run the tool. You may override this hint if user intent differs.`;
   }
 
   if (routed.toolName === 'find') {
-    return `Deterministic routing hint: this request likely maps to find(kind="${routed.args.kind}"). Use getState() first to obtain fileId, then run the tool.`;
+    return `${intro} this request likely maps to find(kind="${routed.args.kind}"). Use getState() first to obtain fileId, then run the tool. You may override this hint if user intent differs.`;
   }
 
   if (routed.toolName === 'workspace') {
-    return `Deterministic routing hint: this request likely maps to workspace(action="${routed.args.action}").`;
+    return `${intro} this request likely maps to workspace(action="${routed.args.action}"). You may override this hint if user intent differs.`;
   }
 
   if (routed.toolName === 'compare') {
-    return 'Deterministic routing hint: this request likely maps to compare(). Use getState() first to list candidate file IDs.';
+    return `${intro} this request likely maps to compare(). Use getState() first to list candidate file IDs. You may override this hint if user intent differs.`;
   }
 
-  return 'Deterministic routing hint: this request likely maps to getState().';
+  return `${intro} this request likely maps to getState(). You may override this hint if user intent differs.`;
 }

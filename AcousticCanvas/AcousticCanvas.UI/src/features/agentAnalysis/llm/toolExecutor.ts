@@ -5,7 +5,7 @@ import { callAnalyzeTool } from '../../agent/services/analyzeToolService';
 import { callCompareTool } from '../../agent/services/compareToolService';
 import { callFindTool } from '../../agent/services/findToolService';
 import { applyWorkspaceAction } from '../../agent/utils/workspaceTool';
-import type { AnalysisKind, WorkspaceAction } from '../../agent/agentToolTypes';
+import type { AnalysisKind, SpectralFocus, WorkspaceAction } from '../../agent/agentToolTypes';
 import { SUPPORTED_ANALYSIS_KINDS, SUPPORTED_EVENT_KINDS } from '../../agent/capabilitiesRegistry';
 import { analysisArtifactAdded, markerArtifactAdded, selectionArtifactAdded, compareArtifactAdded, findArtifactAdded, reportArtifactAdded } from '../agentWorkspaceSlice';
 import type { AgentArtifact } from '../agentWorkspaceSlice';
@@ -48,14 +48,59 @@ function normalizeAnalysisKindAlias(kind: string): string {
   }
 
   if (normalized === 'loudness' || normalized === 'volume' || normalized === 'gain' || normalized === 'amplitude') {
-    return 'level';
+    return 'loudness';
   }
 
-  if (normalized === 'fft' || normalized === 'frequency' || normalized === 'spectral' || normalized === 'frequency_content') {
-    return 'spectrum';
+  if (normalized === 'peak' || normalized === 'peaks' || normalized === 'true_peak' || normalized === 'true-peak') {
+    return 'peaks';
+  }
+
+  if (normalized === 'dynamic_range' || normalized === 'dynamic-range' || normalized === 'crest_factor' || normalized === 'crest-factor') {
+    return 'dynamics';
+  }
+
+  if (normalized === 'fft' || normalized === 'frequency' || normalized === 'spectral' || normalized === 'frequency_content' || normalized === 'spectral_balance') {
+    return 'spectral_balance';
+  }
+
+  if (normalized === 'phase' || normalized === 'stereo' || normalized === 'stereo image' || normalized === 'stereo_image') {
+    return 'stereo_phase';
   }
 
   return normalized;
+}
+
+function mapAnalyzeKindToBackend(kind: string): AnalysisKind | null {
+  if (kind === 'file_info' || kind === 'level' || kind === 'spectrum') {
+    return kind;
+  }
+
+  if (kind === 'loudness' || kind === 'peaks' || kind === 'dynamics' || kind === 'stereo_phase' || kind === 'distortion') {
+    return 'level';
+  }
+
+  if (kind === 'spectral_balance' || kind === 'noise' || kind === 'dialogue_clarity') {
+    return 'spectrum';
+  }
+
+  return null;
+}
+
+function normalizeSpectralFocusAlias(focusRaw: string | null): SpectralFocus | null {
+  if (!focusRaw) return null;
+
+  const normalized = focusRaw.trim().toLowerCase();
+  if (!normalized) return null;
+
+  if (normalized === 'muddiness' || normalized === 'muddy') return 'muddy';
+  if (normalized === 'boominess' || normalized === 'boomy') return 'boomy';
+  if (normalized === 'boxiness' || normalized === 'boxy') return 'boxy';
+  if (normalized === 'harshness' || normalized === 'harsh' || normalized === 'piercing') return 'harsh';
+  if (normalized === 'sibilance' || normalized === 'sibilant') return 'sibilant';
+  if (normalized === 'thinness' || normalized === 'thin') return 'thin';
+  if (normalized === 'dullness' || normalized === 'dull') return 'dull';
+
+  return 'general';
 }
 
 function normalizeEventKindAlias(kind: string): string {
@@ -144,8 +189,10 @@ async function executeAnalyze(
   state: RootState,
 ): Promise<{ resultJson: string; artifactRef: ArtifactReference | null }> {
   const kindRaw = String(parsedArgs['kind'] ?? '');
-  const normalizedKind = normalizeAnalysisKindAlias(kindRaw);
-  const kind = normalizedKind as AnalysisKind;
+  const semanticKind = normalizeAnalysisKindAlias(kindRaw);
+  const backendKind = mapAnalyzeKindToBackend(semanticKind);
+  const focusRaw = typeof parsedArgs['focus'] === 'string' ? parsedArgs['focus'] : null;
+  const normalizedFocus = normalizeSpectralFocusAlias(focusRaw);
   const fileId = parsedArgs['fileId'] as string;
 
   const activeSelection = state.waveformSelection.activeSelection;
@@ -158,9 +205,7 @@ async function executeAnalyze(
   const startSeconds = argsStartSeconds ?? (selectionIsValid ? activeSelection!.startSeconds : null);
   const endSeconds = argsEndSeconds ?? (selectionIsValid ? activeSelection!.endSeconds : null);
 
-  const validKinds: AnalysisKind[] = ['file_info', 'level', 'spectrum'];
-  const isValidKind = validKinds.includes(kind);
-  if (!isValidKind) {
+  if (!backendKind) {
     const requested = String(parsedArgs['kind'] ?? '');
     const suggestion = buildAlternativeSuggestions(requested, SUPPORTED_ANALYSIS_KINDS);
     return {
@@ -178,18 +223,36 @@ async function executeAnalyze(
     };
   }
 
-  const result = await callAnalyzeTool({ kind, fileId, startSeconds, endSeconds });
+  const result = await callAnalyzeTool({
+    kind: backendKind,
+    fileId,
+    startSeconds,
+    endSeconds,
+    focus: backendKind === 'spectrum' ? normalizedFocus : null,
+  });
 
-  const responseResult = kindRaw.toLowerCase() !== normalizedKind
-    ? {
-        ...result,
-        parameters: {
-          ...(result.parameters ?? {}),
-          aliasResolvedFrom: kindRaw,
-          aliasResolvedTo: normalizedKind,
-        },
-      }
-    : result;
+  const normalizedKindForCompare = kindRaw.trim().toLowerCase();
+  const responseResult = {
+    ...result,
+    parameters: {
+      ...(result.parameters ?? {}),
+      requestedKind: kindRaw,
+      semanticKind,
+      resolvedBackendKind: backendKind,
+      ...(backendKind === 'spectrum'
+        ? {
+            requestedFocus: focusRaw,
+            resolvedFocus: normalizedFocus,
+          }
+        : {}),
+      ...(normalizedKindForCompare !== semanticKind
+        ? {
+            aliasResolvedFrom: kindRaw,
+            aliasResolvedTo: semanticKind,
+          }
+        : {}),
+    },
+  };
   const artifactId = crypto.randomUUID();
 
   dispatch(analysisArtifactAdded({
