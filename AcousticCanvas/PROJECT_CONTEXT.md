@@ -79,6 +79,7 @@ The UI supports two main workspaces:
 | Audio file streaming | ✅ Done | `GET /api/audio/file/{fileId}` |
 | Agent analysis run (DSP summary for LLM) | ✅ Done | `POST /api/analysis/run` |
 | OpenAI API chat proxy | ✅ Done | `POST /api/agent/chat` |
+| Findings engine (clipping, silence, crest factor, DC offset) | ✅ Done | `POST /api/analysis/findings` |
 | CPB / octave band analysis | ❌ Not started | — |
 | Sound quality metrics (loudness, sharpness) | ❌ Not started | — |
 | Batch benchmarking | ❌ Not started | — |
@@ -120,6 +121,13 @@ The UI supports two main workspaces:
 - Transient: fast-onset detection
 - Returns AudioEvent[] with start/end times, description, metadata
 
+**Findings Engine:**
+- Orchestrates level analysis + all 4 event kinds per file
+- Generates structured Finding records: type, severity, confidence, evidence, time/freq location, suggestedNextStep
+- Current finding types: `clipping`, `silence_gap`, `high_crest_factor`, `dc_offset`
+- Severity: `low` | `medium` | `high`; Confidence: `observed` | `inferred`
+- Pure static logic in `FindingsEngine.cs` — no dependencies, deterministic
+
 ### Signal Domain Model
 
 ```csharp
@@ -158,7 +166,7 @@ SignalChannel {
 | CPB / octave band visualization | ❌ Not started | — |
 | Sound quality metrics display | ❌ Not started | — |
 | Batch comparison table | ❌ Not started | — |
-| Findings panel | ❌ Not started | — |
+| Findings panel | ✅ Done | Severity-coded cards, evidence chips, suggested next step, time range |
 
 ### Redux Store Structure
 
@@ -172,6 +180,7 @@ SignalChannel {
 | `spectrogram` | Spectrogram result + user parameters |
 | `chat` | messages[], isThinking |
 | `agentWorkspace` | artifacts[], focusedArtifactId |
+| `findings` | FindingsResult, status, error |
 
 ### Agent Tool System
 
@@ -771,7 +780,7 @@ Long-term features:
 Given the current state, the recommended next work is:
 
 1. ~~Connect OpenAI API~~ ✅ Done
-2. **Findings Panel** — Generate structured findings from event detection + spectral analysis
+2. ~~Findings Panel~~ ✅ Done — Structured findings from event detection + level analysis
 3. **Tonal peak detection** — Add prominence-based peak detection to the spectrum analyzer
 4. **CPB analysis** — Implement 1⁄3 octave bands in backend
 5. **Sound quality metrics** — Integrate MoSQITo via Python sidecar or implement basic loudness/sharpness in C#
@@ -787,7 +796,7 @@ Given the current state, the recommended next work is:
 5. CPB analysis
 6. Sound-quality metrics
 7. ~~A/B comparison~~ ✅
-8. Findings engine
+8. ~~Findings engine~~ ✅
 9. Agent explanation layer (OpenAI integration)
 10. Batch benchmarking
 11. Similarity and embeddings
@@ -847,17 +856,17 @@ Acceptance criteria:
 - Agent states when evidence is insufficient
 - Agent answer can be saved as artifact ✅ (artifact type exists)
 
-## Story 9 — Findings Panel ❌ NEXT
+## Story 9 — Findings Panel ✅ DONE
 
 As a user, I want to see detected findings so that I can quickly understand possible issues in the recording.
 
 Acceptance criteria:
 
-- Findings are generated from backend analysis results
-- Findings include type, severity, confidence, and evidence
-- Findings are visible in a dedicated panel
-- User can click a finding to see related evidence
-- Agent can explain a finding
+- ✅ Findings are generated from backend analysis results
+- ✅ Findings include type, severity, confidence, and evidence
+- ✅ Findings are visible in a dedicated panel
+- ✅ User can click a finding to see related evidence (evidence chips in panel)
+- ❌ Agent can explain a finding (deferred — next milestone)
 
 ## Story 10 — Batch Comparison ❌ FUTURE
 
@@ -882,6 +891,7 @@ As a user, I want to analyze many files so that I can rank and compare product r
 | `/api/audio/playback/state/{fileId}` | GET | Query playback state |
 | `/api/audio/file/{fileId}` | GET | Stream audio file |
 | `/api/waveform?fileId={id}&points={n}` | GET | Downsampled waveform |
+| `/api/analysis/findings` | POST | Generate structured findings for a file |
 
 ## Planned Contracts
 
