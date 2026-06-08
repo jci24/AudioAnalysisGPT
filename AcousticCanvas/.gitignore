@@ -35,6 +35,9 @@ graphify-out/
 .env
 .env 2
 
+# Codex hooks (generated)
+.codex/
+
 # Logs
 *.log
 
