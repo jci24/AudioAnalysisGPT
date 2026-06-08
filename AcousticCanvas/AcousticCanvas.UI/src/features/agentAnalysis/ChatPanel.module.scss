@@ -207,6 +207,28 @@
   }
 }
 
+.failedMessageBubble {
+  border-color: rgba(248, 113, 113, 0.35) !important;
+  color: #f87171 !important;
+}
+
+.messageStatusRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
+.inlineSpinner {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 184, 169, 0.18);
+  border-top-color: rgba(0, 184, 169, 0.85);
+  animation: statusSpin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
 .evidenceRow {
   display: flex;
   align-items: center;
@@ -267,6 +289,12 @@
   font-family: var(--font-mono);
   color: var(--text-muted);
   opacity: 0.6;
+}
+
+@keyframes statusSpin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 // ─── Thinking indicator ───────────────────────────────────

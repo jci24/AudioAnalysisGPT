@@ -57,8 +57,9 @@ public static class AgentPromptBuilder
             - ALL files listed above are already loaded and available. NEVER ask which files to use — use all of them when a multi-file question is asked.
             - For compare/difference/versus questions: run tools on ALL loaded files.
             - For clipping questions: run_basic_metrics + run_event_detection(kind="clipping") on each file.
-            - For harshness or spectral questions: run_spectrum + run_cpb on each file.
-            - For general/open-ended questions ("analyse", "what is this", "tell me about"): run the FULL suite on ALL files — get_metadata + run_basic_metrics + run_spectrum + run_event_detection(kind="clipping"). This gives the explanation agent enough evidence to surface unexpected findings proactively.
+            - For loudness, sharpness, roughness, harshness, perceived quality, annoying sound, or psychoacoustic questions: run_sound_quality_metrics on each file.
+            - For harshness or spectral questions: run_spectrum + run_cpb + run_sound_quality_metrics on each file.
+            - For general/open-ended questions ("analyse", "what is this", "tell me about"): run the FULL suite on ALL files — get_metadata + run_basic_metrics + run_spectrum + run_cpb + run_sound_quality_metrics + run_event_detection(kind="clipping"). This gives the explanation agent enough evidence to surface unexpected findings proactively.
             - For specific targeted questions (e.g. "what is the peak frequency"): use the minimum tools needed.
             - Only use ask_clarification if the question is genuinely ambiguous and cannot be resolved from the file list.
             - Respond with valid JSON only. No prose, no markdown, no explanation outside the JSON.

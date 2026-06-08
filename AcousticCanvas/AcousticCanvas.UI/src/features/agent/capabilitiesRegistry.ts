@@ -51,6 +51,14 @@ const ANALYSIS_KINDS: AnalysisKindEntry[] = [
     },
   },
   {
+    kind: 'sound_quality',
+    description: 'Computes MoSQITo loudness, sharpness, and roughness over the full file.',
+    requiresRegion: false,
+    defaultOptions: {
+      backendTool: 'run_sound_quality_metrics',
+    },
+  },
+  {
     kind: 'loudness',
     description: 'Semantic loudness analysis mode mapped to measured level metrics such as RMS and peak values.',
     requiresRegion: false,

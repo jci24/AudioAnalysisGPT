@@ -78,6 +78,10 @@ public static class EvidencePackageBuilder
         {
             ExtractCpbEvidence(parsedData, evidenceItems);
         }
+        else if (toolOutput.ToolName == "run_sound_quality_metrics")
+        {
+            ExtractSoundQualityEvidence(parsedData, evidenceItems);
+        }
         else if (toolOutput.ToolName == "get_metadata")
         {
             ExtractMetadataEvidence(parsedData, evidenceItems);
@@ -403,6 +407,83 @@ public static class EvidencePackageBuilder
         }
     }
 
+    private static void ExtractSoundQualityEvidence(JsonElement parsedData, List<EvidenceItem> evidenceItems)
+    {
+        if (!parsedData.TryGetProperty("results", out var resultsArray))
+        {
+            return;
+        }
+
+        foreach (var fileResult in resultsArray.EnumerateArray())
+        {
+            if (!fileResult.TryGetProperty("fileId", out var fileIdElement))
+            {
+                continue;
+            }
+
+            var fileId = fileIdElement.GetString() ?? "unknown";
+            var evidenceId = "ev_sound_quality_" + fileId[..Math.Min(fileId.Length, 8)];
+
+            var evidenceData = new Dictionary<string, object?>
+            {
+                ["fileId"] = fileId,
+                ["type"] = "sound_quality",
+            };
+
+            if (fileResult.TryGetProperty("method", out var methodElement))
+            {
+                evidenceData["method"] = methodElement.GetString();
+            }
+
+            if (fileResult.TryGetProperty("region", out var regionElement))
+            {
+                if (regionElement.TryGetProperty("startSeconds", out var startElement))
+                {
+                    evidenceData["regionStartSeconds"] = startElement.GetDouble();
+                }
+
+                if (regionElement.TryGetProperty("endSeconds", out var endElement))
+                {
+                    evidenceData["regionEndSeconds"] = endElement.GetDouble();
+                }
+            }
+
+            AddSoundQualityMetricEvidence(fileResult, evidenceData, "loudness", "loudnessSone", "loudnessMethod");
+            AddSoundQualityMetricEvidence(fileResult, evidenceData, "sharpness", "sharpnessAcum", "sharpnessMethod");
+            AddSoundQualityMetricEvidence(fileResult, evidenceData, "roughness", "roughnessAsper", "roughnessMethod");
+
+            evidenceItems.Add(new EvidenceItem
+            {
+                EvidenceId = evidenceId,
+                Type = "sound_quality",
+                Data = evidenceData,
+            });
+        }
+    }
+
+    private static void AddSoundQualityMetricEvidence(
+        JsonElement fileResult,
+        Dictionary<string, object?> evidenceData,
+        string metricPropertyName,
+        string valueEvidenceKey,
+        string methodEvidenceKey)
+    {
+        if (!fileResult.TryGetProperty(metricPropertyName, out var metricElement))
+        {
+            return;
+        }
+
+        if (metricElement.TryGetProperty("value", out var valueElement))
+        {
+            evidenceData[valueEvidenceKey] = valueElement.GetDouble();
+        }
+
+        if (metricElement.TryGetProperty("method", out var methodElement))
+        {
+            evidenceData[methodEvidenceKey] = methodElement.GetString();
+        }
+    }
+
     private static void AddStandardLimitations(List<string> limitations, List<string> analysesRun)
     {
         if (analysesRun.Contains("run_basic_metrics") || analysesRun.Contains("run_event_detection"))
@@ -418,7 +499,7 @@ public static class EvidencePackageBuilder
 
         if (!analysesRun.Contains("run_sound_quality_metrics"))
         {
-            limitations.Add("No psychoacoustic metrics (loudness, sharpness) were computed. Sound quality interpretation is based on spectral and level data only.");
+            limitations.Add("No psychoacoustic metrics (loudness, sharpness, roughness) were computed. Sound quality interpretation is based on spectral and level data only.");
         }
     }
 }

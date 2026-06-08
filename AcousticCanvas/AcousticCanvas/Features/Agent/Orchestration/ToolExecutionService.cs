@@ -2,12 +2,14 @@ using System.Text.Json;
 using FastEndpoints;
 using AcousticCanvas.Features.Analysis.Commands;
 using AcousticCanvas.Features.Analysis.Domain;
+using AcousticCanvas.Features.Analysis.Services;
 using AcousticCanvas.Features.AudioUpload.Handlers;
 
 namespace AcousticCanvas.Features.Agent.Orchestration;
 
 public sealed class ToolExecutionService(
-    UploadAudioHandler uploadAudioHandler)
+    UploadAudioHandler uploadAudioHandler,
+    SoundQualityAnalysisService soundQualityAnalysisService)
 {
     private const double DefaultSpectrumStartSeconds = 0.0;
     private const double DefaultSpectrumEndFallback = 600.0;
@@ -35,6 +37,7 @@ public sealed class ToolExecutionService(
                 "run_event_detection" => await ExecuteRunEventDetectionAsync(toolRequest.Arguments, cancellationToken),
                 "run_spectrum" => await ExecuteRunSpectrumAsync(toolRequest.Arguments, cancellationToken),
                 "run_cpb" => await ExecuteRunCpbAsync(toolRequest.Arguments, cancellationToken),
+                "run_sound_quality_metrics" => await ExecuteRunSoundQualityMetricsAsync(toolRequest.Arguments, cancellationToken),
                 _ => BuildFailureOutput(toolName, "TOOL_NOT_IMPLEMENTED", $"Tool '{toolName}' is registered but not implemented in ToolExecutionService."),
             };
         }
@@ -350,6 +353,73 @@ public sealed class ToolExecutionService(
 
         var resultData = new { results = cpbResults };
         return BuildSuccessOutput("run_cpb", "cpb_" + Guid.NewGuid().ToString("N")[..8], resultData);
+    }
+
+    private async Task<ToolExecutionOutput> ExecuteRunSoundQualityMetricsAsync(
+        Dictionary<string, object?> arguments,
+        CancellationToken cancellationToken)
+    {
+        var fileIds = ExtractFileIds(arguments);
+        if (fileIds.Count == 0)
+        {
+            return BuildFailureOutput("run_sound_quality_metrics", "MISSING_FILE_IDS", "fileIds argument is required and must not be empty.");
+        }
+
+        var soundQualityResults = new List<object>();
+
+        foreach (var fileId in fileIds)
+        {
+            var filePath = uploadAudioHandler.GetFilePath(fileId);
+            if (string.IsNullOrEmpty(filePath))
+            {
+                soundQualityResults.Add(new { fileId, error = "File not found in storage." });
+                continue;
+            }
+
+            var durationSeconds = GetFileDurationSeconds(filePath);
+            var effectiveEndSeconds = durationSeconds > 0 ? durationSeconds : DefaultSpectrumEndFallback;
+            var query = new RunSoundQualityQuery(
+                FilePath: filePath,
+                StartSeconds: 0.0,
+                EndSeconds: effectiveEndSeconds,
+                Method: "mosqito_stationary_zwicker");
+
+            var soundQualityResult = await soundQualityAnalysisService.AnalyzeAsync(query, cancellationToken);
+
+            soundQualityResults.Add(new
+            {
+                fileId,
+                region = new
+                {
+                    startSeconds = soundQualityResult.Region.StartSeconds,
+                    endSeconds = soundQualityResult.Region.EndSeconds,
+                    durationSeconds = soundQualityResult.Region.DurationSeconds,
+                },
+                method = soundQualityResult.Parameters.Method,
+                limitations = soundQualityResult.Parameters.Limitations,
+                loudness = new
+                {
+                    value = soundQualityResult.Loudness.Value,
+                    unit = soundQualityResult.Loudness.Unit,
+                    method = soundQualityResult.Loudness.Method,
+                },
+                sharpness = new
+                {
+                    value = soundQualityResult.Sharpness.Value,
+                    unit = soundQualityResult.Sharpness.Unit,
+                    method = soundQualityResult.Sharpness.Method,
+                },
+                roughness = new
+                {
+                    value = soundQualityResult.Roughness.Value,
+                    unit = soundQualityResult.Roughness.Unit,
+                    method = soundQualityResult.Roughness.Method,
+                },
+            });
+        }
+
+        var resultData = new { results = soundQualityResults };
+        return BuildSuccessOutput("run_sound_quality_metrics", "sound_quality_" + Guid.NewGuid().ToString("N")[..8], resultData);
     }
 
     // ─── Helpers ───────────────────────────────────────────────────────────

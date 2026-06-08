@@ -155,7 +155,7 @@ SignalChannel {
 | Spectrum panel | ✅ Done | FFT viz, tonal peak summary, channel selection, user params |
 | Spectrogram panel | ✅ Done | Time-frequency heatmap |
 | Comparison view | ✅ Done | Overlaid spectrum + metrics table + band deltas |
-| Agent chat panel | ✅ Done | Messages, suggestion prompts, evidence tokens; backend-agent responses clear loading state so the composer unlocks |
+| Agent chat panel | ✅ Done | Messages, suggestion prompts, evidence tokens; backend-agent responses use one in-place assistant bubble for loading, final answer, and errors so the composer unlocks cleanly |
 | Agent artifacts panel | ✅ Done | 7 artifact types (analysis, compare, find, markers, selections, views, reports) |
 | Agent tool execution loop | ✅ Done | Tool dispatch → API calls → artifact storage |
 | File @mentions in chat | ✅ Done | Autocomplete dropdown |
@@ -198,6 +198,10 @@ The agent has a capabilities registry with these tools:
 | `report` | Generate markdown reports |
 
 Semantic analysis kinds available: loudness, peaks, dynamics, spectral_balance, noise, stereo_phase, distortion, dialogue_clarity.
+
+Backend agent tools available: get_metadata, run_basic_metrics, run_spectrum, run_cpb, run_sound_quality_metrics, run_event_detection.
+
+Sound-quality evidence: Agent mode can now run full-file MoSQITo loudness, sharpness, and roughness and cite those measured values in grounded answers.
 
 ### API Base URL
 
@@ -764,7 +768,7 @@ Must-have features:
 - ✅ Agent orchestration vertical slice (planner → tools → evidence → grounded answer)
 - ✅ `POST /api/agent/ask` endpoint
 - ✅ `AgentOrchestrator`, `AgentPlanner`, `ToolExecutionService`, `EvidencePackageBuilder`, `AgentResponseValidator`
-- ✅ AgentToolRegistry whitelist (get_metadata, run_basic_metrics, run_spectrum, run_cpb, run_event_detection)
+- ✅ AgentToolRegistry whitelist (get_metadata, run_basic_metrics, run_spectrum, run_cpb, run_sound_quality_metrics, run_event_detection)
 - ✅ Frontend: `useAgentAsk` hook, `agentAskSlice`, `AgentAnswerPanel` component
 - ✅ Evidence references, confidence, limitations, suggested next steps in response
 - Agent can explain A/B differences
@@ -810,7 +814,7 @@ Given the current state, the recommended next work is:
 3. ~~Tonal peak detection~~ ✅ Done — Local prominence heuristic in spectrum analyzer + findings
 4. ~~CPB analysis~~ 🟡 Partial — Backend + manual CPB panel, comparison, Z/A/C weighting controls, experimental `python_filter_bank` sidecar path, and generated-WAV validation tests done; external calibrator validation pending
 5. ~~Sound quality metrics: loudness + sharpness + roughness~~ ✅ First slice done — MoSQITo sidecar, backend endpoint, manual panel, direct metric imports, and generated-WAV validation
-6. **Next: Sound-quality comparison** — Add loudness/sharpness/roughness deltas to A/B comparison and agent evidence
+6. **Next: Sound-quality comparison** — Add loudness/sharpness/roughness deltas to A/B comparison UI and report artifacts
 
 ---
 

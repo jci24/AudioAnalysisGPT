@@ -41,6 +41,13 @@ public static class AgentToolRegistry
                 MaxFileCount = 4,
                 MaxFileDurationSeconds = 300.0,
             },
+            ["run_sound_quality_metrics"] = new AgentToolDefinition
+            {
+                Name = "run_sound_quality_metrics",
+                Description = "Compute MoSQITo psychoacoustic loudness, sharpness, and roughness metrics.",
+                MaxFileCount = 4,
+                MaxFileDurationSeconds = 300.0,
+            },
             ["run_event_detection"] = new AgentToolDefinition
             {
                 Name = "run_event_detection",
@@ -82,6 +89,8 @@ public static class AgentToolRegistry
             "- run_spectrum: Compute averaged FFT spectrum with tonal peak detection.",
             "  Arguments: { \"fileIds\": [\"<id1>\", \"<id2>\"] }  ← fileIds MUST be a JSON array of strings",
             "- run_cpb: Compute octave or 1/3-octave band levels.",
+            "  Arguments: { \"fileIds\": [\"<id1>\", \"<id2>\"] }  ← fileIds MUST be a JSON array of strings",
+            "- run_sound_quality_metrics: Compute MoSQITo loudness, sharpness, and roughness.",
             "  Arguments: { \"fileIds\": [\"<id1>\", \"<id2>\"] }  ← fileIds MUST be a JSON array of strings",
             "- run_event_detection: Detect audio events: clipping, silence, loudest, transient.",
             "  Arguments: { \"fileId\": \"<id>\", \"kind\": \"clipping\" }  ← fileId is a single string, kind is one of: clipping, silence, loudest, transient",

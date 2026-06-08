@@ -4,12 +4,14 @@ import { createSlice } from '@reduxjs/toolkit';
 export type ChatRole = 'user' | 'assistant' | 'tool_call';
 
 export type ToolCallStatus = 'running' | 'done' | 'error';
+export type AgentMessageStatus = 'thinking' | 'completed' | 'failed';
 
 export type ChatMessage = {
   id: string;
   role: ChatRole;
   content: string;
   timestamp: string;
+  status?: AgentMessageStatus;
   toolName?: string;
   toolStatus?: ToolCallStatus;
 };
@@ -38,12 +40,47 @@ const chatSlice = createSlice({
       state.isThinking = true;
     },
     assistantMessageReceived: (state, action: PayloadAction<{ id: string; content: string; timestamp: string }>) => {
+      const existingMessage = state.messages.find((message) => message.id === action.payload.id);
+      if (existingMessage && existingMessage.role === 'assistant') {
+        existingMessage.content = action.payload.content;
+        existingMessage.timestamp = action.payload.timestamp;
+        existingMessage.status = 'completed';
+      } else {
+        state.messages.push({
+          id: action.payload.id,
+          role: 'assistant',
+          content: action.payload.content,
+          timestamp: action.payload.timestamp,
+          status: 'completed',
+        });
+      }
+      state.isThinking = false;
+    },
+    assistantResponseStarted: (state, action: PayloadAction<{ id: string; timestamp: string }>) => {
       state.messages.push({
         id: action.payload.id,
         role: 'assistant',
-        content: action.payload.content,
+        content: 'Analyzing request...',
         timestamp: action.payload.timestamp,
+        status: 'thinking',
       });
+      state.isThinking = true;
+    },
+    assistantMessageFailed: (state, action: PayloadAction<{ id: string; error: string; timestamp: string }>) => {
+      const existingMessage = state.messages.find((message) => message.id === action.payload.id);
+      if (existingMessage && existingMessage.role === 'assistant') {
+        existingMessage.content = action.payload.error;
+        existingMessage.timestamp = action.payload.timestamp;
+        existingMessage.status = 'failed';
+      } else {
+        state.messages.push({
+          id: action.payload.id,
+          role: 'assistant',
+          content: action.payload.error,
+          timestamp: action.payload.timestamp,
+          status: 'failed',
+        });
+      }
       state.isThinking = false;
     },
     agentThinkingFinished: (state) => {
@@ -73,6 +110,8 @@ const chatSlice = createSlice({
 export const {
   userMessageSent,
   assistantMessageReceived,
+  assistantResponseStarted,
+  assistantMessageFailed,
   agentThinkingFinished,
   toolCallStarted,
   toolCallFinished,

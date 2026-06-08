@@ -80,6 +80,8 @@ function parseEvidenceTokens(content: string): { text: string; tokens: EvidenceT
 function AssistantMessage({ message }: { message: ChatMessage }): JSX.Element {
   const dispatch = useAppDispatch();
   const parsed = parseEvidenceTokens(message.content);
+  const isThinkingMessage = message.status === 'thinking';
+  const isFailedMessage = message.status === 'failed';
 
   const handleEvidenceClick = (token: EvidenceToken): void => {
     dispatch(artifactFocused(token.id));
@@ -87,23 +89,32 @@ function AssistantMessage({ message }: { message: ChatMessage }): JSX.Element {
 
   return (
     <div className={`${styles.messageWrapper} ${styles.assistant}`}>
-      <div className={styles.messageBubble}>
-        {parsed.text}
-        {parsed.tokens.length > 0 && (
-          <div className={styles.evidenceRow}>
-            <span className={styles.evidenceLabel}>Evidence:</span>
-            {parsed.tokens.map((token) => (
-              <button
-                type="button"
-                key={`${token.type}:${token.id}`}
-                className={styles.evidenceLink}
-                onClick={() => handleEvidenceClick(token)}
-                title={`Open ${token.type.replace('_', ' ')} artifact`}
-              >
-                {EVIDENCE_LABELS[token.type]} #{getShortArtifactId(token.id)}
-              </button>
-            ))}
+      <div className={`${styles.messageBubble} ${isFailedMessage ? styles.failedMessageBubble : ''}`}>
+        {isThinkingMessage ? (
+          <div className={styles.messageStatusRow}>
+            <span className={styles.inlineSpinner} />
+            <span>{message.content}</span>
           </div>
+        ) : (
+          <>
+            {parsed.text}
+            {parsed.tokens.length > 0 && (
+              <div className={styles.evidenceRow}>
+                <span className={styles.evidenceLabel}>Evidence:</span>
+                {parsed.tokens.map((token) => (
+                  <button
+                    type="button"
+                    key={`${token.type}:${token.id}`}
+                    className={styles.evidenceLink}
+                    onClick={() => handleEvidenceClick(token)}
+                    title={`Open ${token.type.replace('_', ' ')} artifact`}
+                  >
+                    {EVIDENCE_LABELS[token.type]} #{getShortArtifactId(token.id)}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
       <div className={styles.messageMeta}>
@@ -123,18 +134,6 @@ function ToolCallMessage({ message }: { message: ChatMessage }): JSX.Element {
         {isRunning ? <IconTool size={11} /> : isError ? <IconX size={11} /> : <IconCheck size={11} />}
       </span>
       <span className={styles.toolCallContent}>{message.content}</span>
-    </div>
-  );
-}
-
-function ThinkingIndicator(): JSX.Element {
-  return (
-    <div className={styles.thinkingWrapper}>
-      <div className={styles.thinkingBubble}>
-        <span className={styles.thinkingDot} />
-        <span className={styles.thinkingDot} />
-        <span className={styles.thinkingDot} />
-      </div>
     </div>
   );
 }
@@ -262,6 +261,9 @@ export function ChatPanel(): JSX.Element {
   }, [messages, isThinking]);
 
   const hasMessages = messages.length > 0;
+  const agentPanelResponse = agentAskResponse !== null && agentAskResponse.toolExecutions.length === 0
+    ? agentAskResponse
+    : null;
 
   return (
     <div className={styles.panel}>
@@ -291,10 +293,9 @@ export function ChatPanel(): JSX.Element {
           if (message.role === 'tool_call') return <ToolCallMessage key={message.id} message={message} />;
           return <AssistantMessage key={message.id} message={message} />;
         })}
-        {isThinking && <ThinkingIndicator />}
         <AgentAnswerPanel
           status={agentAskStatus}
-          response={agentAskResponse}
+          response={agentPanelResponse}
           error={agentAskError}
           onReply={handleClarificationReply}
         />

@@ -50,6 +50,13 @@ describe('CAPABILITY_REGISTRY structure', () => {
     expect(fileInfo?.requiresRegion).toBe(false);
     expect(level?.requiresRegion).toBe(false);
   });
+
+  it('includes full-file sound quality metrics', () => {
+    const soundQuality = CAPABILITY_REGISTRY.analysisKinds.find((e) => e.kind === 'sound_quality');
+    expect(soundQuality?.requiresRegion).toBe(false);
+    expect(soundQuality?.description).toContain('loudness');
+    expect(soundQuality?.description).toContain('roughness');
+  });
 });
 
 describe('isAnalysisKindSupported', () => {
@@ -57,6 +64,7 @@ describe('isAnalysisKindSupported', () => {
     expect(isAnalysisKindSupported('file_info')).toBe(true);
     expect(isAnalysisKindSupported('level')).toBe(true);
     expect(isAnalysisKindSupported('spectrum')).toBe(true);
+    expect(isAnalysisKindSupported('sound_quality')).toBe(true);
     expect(isAnalysisKindSupported('loudness')).toBe(true);
     expect(isAnalysisKindSupported('spectral_balance')).toBe(true);
     expect(isAnalysisKindSupported('dialogue_clarity')).toBe(true);

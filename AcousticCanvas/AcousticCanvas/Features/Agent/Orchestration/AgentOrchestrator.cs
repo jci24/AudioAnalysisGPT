@@ -78,12 +78,13 @@ public sealed class AgentOrchestrator(
 
         // Step 9: Build and return the result.
         var toolExecutionRecords = BuildToolExecutionRecords(toolExecutionOutputs);
+        var formattedEvidenceReferences = FormatEvidenceReferencesForFrontend(finalAnswer.EvidenceReferences, evidencePackage);
 
         return new AgentAskResult(
             ConversationId: conversationId,
             Answer: finalAnswer.Answer,
             EvidencePackageId: evidencePackage.EvidencePackageId,
-            EvidenceReferences: finalAnswer.EvidenceReferences,
+            EvidenceReferences: formattedEvidenceReferences,
             Confidence: finalAnswer.Confidence,
             Limitations: MergeAndDeduplicate(finalAnswer.Limitations, evidencePackage.Limitations),
             SuggestedNextSteps: finalAnswer.SuggestedNextSteps,
@@ -112,12 +113,13 @@ public sealed class AgentOrchestrator(
 
         var finalAnswer = DeterministicAnswerWriter.Write(deterministicPlan, evidencePackage);
         var toolExecutionRecords = BuildToolExecutionRecords([toolOutput]);
+        var formattedEvidenceReferences = FormatEvidenceReferencesForFrontend(finalAnswer.EvidenceReferences, evidencePackage);
 
         return new AgentAskResult(
             ConversationId: conversationId,
             Answer: finalAnswer.Answer,
             EvidencePackageId: evidencePackage.EvidencePackageId,
-            EvidenceReferences: finalAnswer.EvidenceReferences,
+            EvidenceReferences: formattedEvidenceReferences,
             Confidence: finalAnswer.Confidence,
             Limitations: finalAnswer.Limitations,
             SuggestedNextSteps: finalAnswer.SuggestedNextSteps,
