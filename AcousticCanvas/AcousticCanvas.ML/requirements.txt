@@ -1,2 +1,3 @@
 PyOctaveBand==1.2.2
-numpy==2.2.6
+numpy==2.4.6
+mosqito==1.2.1

@@ -23,6 +23,11 @@ obj/
 # Dependencies
 node_modules/
 
+# Python sidecar
+.venv/
+__pycache__/
+*.pyc
+
 # Logs
 *.log
 
