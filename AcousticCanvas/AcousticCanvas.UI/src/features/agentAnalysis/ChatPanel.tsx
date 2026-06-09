@@ -7,6 +7,7 @@ import {
 } from '@tabler/icons-react';
 import { useAppDispatch, useAppSelector } from '../../store/reduxHooks';
 import { chatMessagesSelector, chatIsThinkingSelector } from './chatSlice';
+import type { ToolStep } from './chatSlice';
 import { activeSelectionSelector } from '../waveform/waveformSelectionSlice';
 import type { ChatMessage } from './chatSlice';
 import { artifactFocused } from './agentWorkspaceSlice';
@@ -121,6 +122,9 @@ function AssistantMessage({ message }: { message: ChatMessage }): JSX.Element {
                 ))}
               </div>
             )}
+            {message.toolSteps && message.toolSteps.length > 0 && (
+              <AnalysisSteps steps={message.toolSteps} confidence={message.confidence} />
+            )}
           </>
         )}
       </div>
@@ -142,6 +146,63 @@ function ToolCallMessage({ message }: { message: ChatMessage }): JSX.Element {
       </span>
       <span className={styles.toolCallContent}>{message.content}</span>
     </div>
+  );
+}
+
+const TOOL_LABELS: Record<string, string> = {
+  get_metadata: 'Read metadata',
+  run_basic_metrics: 'Measure levels (RMS, peak, crest factor)',
+  run_event_detection: 'Detect events (clipping / silence / transients)',
+  run_spectrum: 'Compute FFT spectrum',
+  run_cpb: 'Compute CPB bands (1/3 octave)',
+  run_sound_quality_metrics: 'Compute psychoacoustic metrics (MoSQITo)',
+  run_findings: 'Run findings pipeline',
+};
+
+const CONFIDENCE_LABELS: Record<string, string> = {
+  high: 'High confidence',
+  medium: 'Medium confidence',
+  low: 'Low confidence',
+};
+
+function AnalysisSteps({ steps, confidence }: { steps: ToolStep[]; confidence?: string }): JSX.Element {
+  const completed = steps.filter((s) => s.status === 'completed').length;
+  const failed = steps.filter((s) => s.status === 'failed').length;
+
+  const summaryText = failed > 0
+    ? `${completed} analyses run · ${failed} failed`
+    : `${completed} ${completed === 1 ? 'analysis' : 'analyses'} run`;
+
+  return (
+    <details className={styles.analysisSteps}>
+      <summary className={styles.analysisStepsSummary}>
+        <span className={styles.analysisStepsLabel}>Analysis steps</span>
+        <span className={styles.analysisStepsCount}>{summaryText}</span>
+        {confidence && (
+          <span className={`${styles.confidenceBadge} ${styles[`confidence_${confidence}`] ?? ''}`}>
+            {CONFIDENCE_LABELS[confidence] ?? confidence}
+          </span>
+        )}
+      </summary>
+      <ol className={styles.analysisStepsList}>
+        {steps.map((step, index) => (
+          <li
+            key={index}
+            className={`${styles.analysisStep} ${step.status === 'failed' ? styles.analysisStepFailed : ''}`}
+          >
+            <span className={styles.analysisStepIcon}>
+              {step.status === 'completed' ? <IconCheck size={9} /> : <IconX size={9} />}
+            </span>
+            <span className={styles.analysisStepName}>
+              {TOOL_LABELS[step.toolName] ?? step.toolName}
+            </span>
+            {step.errorMessage && (
+              <span className={styles.analysisStepError}>{step.errorMessage}</span>
+            )}
+          </li>
+        ))}
+      </ol>
+    </details>
   );
 }
 

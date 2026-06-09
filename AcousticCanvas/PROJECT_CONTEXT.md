@@ -74,6 +74,7 @@ The UI supports two main workspaces:
 | Spectrum analysis (FFT, Hann, configurable) | ✅ Done | `POST /api/analysis/spectrum` |
 | Spectrogram analysis (STFT, multi-scale) | ✅ Done | `POST /api/analysis/spectrogram` |
 | Multi-file comparison (pairwise, band energy) | ✅ Done | `POST /api/analysis/compare` |
+| Sound quality comparison deltas (loudness/sharpness/roughness A/B) | ✅ Done | Woven into `POST /api/analysis/compare`; `soundQuality` per file + `soundQualityDelta` in pairwiseDiffs |
 | Event detection (clipping, silence, transients, loudest region) | ✅ Done | `POST /api/analysis/find` |
 | Waveform downsampling | ✅ Done | `GET /api/waveform?fileId={id}&points={n}` |
 | Playback state machine | ✅ Done | `POST /api/audio/playback/control` |
@@ -118,6 +119,8 @@ The UI supports two main workspaces:
 - Pre-computed deltas: peak, RMS, crest factor, frequency differences
 - Named frequency bands: sub (20–80 Hz), low, low_mid, mid, presence, high, air (10–20 kHz)
 - Band energy deltas computed server-side
+- **Psychoacoustic comparison**: `CompareSoundQuality` (loudness/sharpness/roughness) per file + `CompareSoundQualityDelta` (B−A + winner fields) in pairwiseDiffs; null when Python sidecar unavailable (graceful degradation)
+- **Agent evidence**: `EvidencePackageBuilder` emits `sound_quality_comparison` evidence item when ≥2 files have SQ metrics; agent can cite per-metric deltas as benchmark evidence
 
 **Event Detection:**
 - Clipping: ≥0.99 FS, ≥2 consecutive samples
@@ -158,7 +161,7 @@ SignalChannel {
 | Level analysis inspector | ✅ Done | Multi-channel metrics grid with bars |
 | Spectrum panel | ✅ Done | FFT viz, tonal peak summary, channel selection, user params |
 | Spectrogram panel | ✅ Done | Time-frequency heatmap |
-| Comparison view | ✅ Done | Overlaid spectrum + metrics table + band deltas |
+| Comparison view | ✅ Done | Overlaid spectrum + metrics table + band deltas + **Psych Δ tab** (loudness/sharpness/roughness) |
 | Agent chat panel | ✅ Done | Messages, suggestion prompts, evidence tokens; markdown rendering via react-markdown; backend-agent responses use one in-place assistant bubble |
 | Agent artifacts panel | ✅ Done | 9 artifact types: analysis, compare, find, findings_result, tool_result, markers, selections, views, reports |
 | Agent tool execution loop | ✅ Done | Tool dispatch → API calls → artifact storage |

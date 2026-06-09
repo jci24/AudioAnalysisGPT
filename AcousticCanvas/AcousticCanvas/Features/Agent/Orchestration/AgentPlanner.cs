@@ -79,7 +79,7 @@ public sealed class AgentPlanner(OpenAiChatService openAiChatService)
             Evidence package:
             {evidenceJson}
 
-            Explain the evidence clearly. Reference the evidenceId fields. Return valid JSON only.
+            Explain the evidence clearly. Put evidenceId values only in the evidenceReferences array — never in the answer text. Do not write an "Evidence:" section. Return valid JSON only.
             """;
 
         var answerRequest = new ChatCompletionRequest

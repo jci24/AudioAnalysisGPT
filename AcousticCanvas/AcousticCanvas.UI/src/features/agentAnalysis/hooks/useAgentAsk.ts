@@ -7,6 +7,7 @@ import {
   assistantMessageReceived,
   assistantResponseStarted,
 } from '../chatSlice';
+import type { ToolStep } from '../chatSlice';
 import type { AgentAskResponse } from '../services/agentAskService';
 import { callAgentAskEndpoint } from '../services/agentAskService';
 import {
@@ -240,6 +241,12 @@ export function useAgentAsk() {
         id: assistantMessageId,
         content: buildChatContent(agentResponse, artifactTokens),
         timestamp: new Date().toISOString(),
+        toolSteps: agentResponse.toolExecutions.map((e): ToolStep => ({
+          toolName: e.toolName,
+          status: e.status,
+          errorMessage: e.errorMessage,
+        })),
+        confidence: agentResponse.confidence,
       }));
       dispatch(agentThinkingFinished());
     } catch (err) {

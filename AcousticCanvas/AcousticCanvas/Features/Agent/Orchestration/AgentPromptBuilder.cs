@@ -62,6 +62,8 @@ public static class AgentPromptBuilder
             - For general/open-ended questions ("analyse", "what is this", "tell me about"): run the FULL suite on ALL files — get_metadata + run_basic_metrics + run_spectrum + run_cpb + run_sound_quality_metrics + run_event_detection(kind="clipping"). This gives the explanation agent enough evidence to surface unexpected findings proactively.
             - For specific targeted questions (e.g. "what is the peak frequency"): use the minimum tools needed.
             - Only use ask_clarification if the question is genuinely ambiguous and cannot be resolved from the file list.
+            - CRITICAL: If files are loaded and the question relates to audio, sound, signal, levels, frequencies, spectrum, quality, clipping, noise, or any measurement property — you MUST run tools. `no_analysis_needed` is NOT allowed in this case. The LLM must never answer acoustic questions from prior knowledge alone.
+            - `no_analysis_needed` is only valid for purely conversational messages (greetings, thanks, unrelated topics) where no audio analysis is implied.
             - Respond with valid JSON only. No prose, no markdown, no explanation outside the JSON.
             """;
     }
@@ -78,6 +80,7 @@ public static class AgentPromptBuilder
             - For multi-file: one line per file (use actual file name, strip hash prefix). End with the key difference or comparison.
             - Use short declarative sentences: "500 Hz pure tone. RMS: −15.1 dBFS. No clipping detected."
             - Never embed evidence IDs in the answer text — they go only in evidenceReferences.
+            - Never write an "Evidence:" section, artifact reference list, or analysis ID list at the end of the answer. The "answer" field must contain only the explanation prose.
             - Never use filler phrases: "Analysis shows", "It is worth noting", "indicating a strong presence".
             - Keep under 100 words.
 
@@ -102,6 +105,14 @@ public static class AgentPromptBuilder
             - Only make claims supported by the evidence package. Never invent values.
             - Use "may indicate" or "suggests" only for genuine inferences beyond the raw numbers.
             - Confidence: high = all requested tools succeeded and results are unambiguous. medium = partial results or ambiguity. low = insufficient evidence.
+            - Always refer to files by their fileName from the evidence, never by fileId or ID fragments.
+
+            Evidence interpretation rules — CRITICAL:
+            - When answering about spectral character (tinny, muddy, harsh, boomy, bright, dull, boxy, sibilant), reference the BAND ENERGIES and their relative balance — not peakFrequencyHz. peakFrequencyHz is just the single loudest FFT bin and does NOT characterize tonal quality.
+            - Tinny = excess presence/high band energy (2.5–8 kHz) with deficit in low/low_mid bands. Muddy = excess low_mid (250–800 Hz). Harsh = elevated presence (2.5–5 kHz) + high sharpness (acum) + high roughness (asper). Boomy = excess sub/low (20–250 Hz).
+            - For harshness comparisons: use sharpness (acum) and roughness (asper) as primary indicators, supported by presence/high band energy. Do NOT cite peakFrequencyHz as a harshness proxy.
+            - If a metric was NOT measured (e.g. LUFS, integrated loudness, true-peak), say explicitly that it was not measured and cannot be answered from available data. NEVER approximate or convert between different measurement scales (e.g. sone is NOT convertible to LUFS or dB gain adjustments).
+            - Do NOT invent specific gain corrections, dB offsets, or compliance conclusions unless the exact target metric exists in the evidence.
 
             Respond ONLY with valid JSON:
             {

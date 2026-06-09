@@ -6,6 +6,12 @@ export type ChatRole = 'user' | 'assistant' | 'tool_call';
 export type ToolCallStatus = 'running' | 'done' | 'error';
 export type AgentMessageStatus = 'thinking' | 'completed' | 'failed';
 
+export type ToolStep = {
+  toolName: string;
+  status: 'completed' | 'failed';
+  errorMessage?: string | null;
+};
+
 export type ChatMessage = {
   id: string;
   role: ChatRole;
@@ -14,6 +20,8 @@ export type ChatMessage = {
   status?: AgentMessageStatus;
   toolName?: string;
   toolStatus?: ToolCallStatus;
+  toolSteps?: ToolStep[];
+  confidence?: string;
 };
 
 interface ChatState {
@@ -39,12 +47,14 @@ const chatSlice = createSlice({
       });
       state.isThinking = true;
     },
-    assistantMessageReceived: (state, action: PayloadAction<{ id: string; content: string; timestamp: string }>) => {
+    assistantMessageReceived: (state, action: PayloadAction<{ id: string; content: string; timestamp: string; toolSteps?: ToolStep[]; confidence?: string }>) => {
       const existingMessage = state.messages.find((message) => message.id === action.payload.id);
       if (existingMessage && existingMessage.role === 'assistant') {
         existingMessage.content = action.payload.content;
         existingMessage.timestamp = action.payload.timestamp;
         existingMessage.status = 'completed';
+        existingMessage.toolSteps = action.payload.toolSteps;
+        existingMessage.confidence = action.payload.confidence;
       } else {
         state.messages.push({
           id: action.payload.id,
@@ -52,6 +62,8 @@ const chatSlice = createSlice({
           content: action.payload.content,
           timestamp: action.payload.timestamp,
           status: 'completed',
+          toolSteps: action.payload.toolSteps,
+          confidence: action.payload.confidence,
         });
       }
       state.isThinking = false;

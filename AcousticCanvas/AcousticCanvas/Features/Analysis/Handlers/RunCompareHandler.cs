@@ -6,7 +6,9 @@ using AcousticCanvas.Features.Analysis.Services;
 
 namespace AcousticCanvas.Features.Analysis.Handlers;
 
-public class RunCompareHandler(SignalAnalysisService analysisService)
+public class RunCompareHandler(
+    SignalAnalysisService analysisService,
+    SoundQualityAnalysisService soundQualityAnalysisService)
     : CommandHandler<RunCompareCommand, CompareResult>
 {
     private const int DefaultFftSize = 8192;
@@ -24,7 +26,7 @@ public class RunCompareHandler(SignalAnalysisService analysisService)
         ("air",     10000.0, 20000.0),
     ];
 
-    public override Task<CompareResult> ExecuteAsync(RunCompareCommand command, CancellationToken ct)
+    public override async Task<CompareResult> ExecuteAsync(RunCompareCommand command, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
 
@@ -44,7 +46,7 @@ public class RunCompareHandler(SignalAnalysisService analysisService)
         var summaries = new List<CompareFileSummary>();
         for (int index = 0; index < command.FilePaths.Count; index++)
         {
-            var summary = BuildFileSummary(command.FilePaths[index], command.StartSeconds, command.EndSeconds);
+            var summary = await BuildFileSummaryAsync(command.FilePaths[index], command.StartSeconds, command.EndSeconds, ct);
             summaries.Add(summary);
         }
 
@@ -58,6 +60,7 @@ public class RunCompareHandler(SignalAnalysisService analysisService)
                 var spectrumDelta = BuildSpectrumDelta(a.SpectrumCurve, b.SpectrumCurve);
                 var bandEnergyDeltas = BuildBandEnergyDeltas(a.BandEnergies, b.BandEnergies);
                 var cpbBandDeltas = BuildCpbBandDeltas(a.CpbBands, b.CpbBands);
+                var soundQualityDelta = BuildSoundQualityDelta(a, b);
 
                 pairwiseDiffs.Add(new PairwiseDiff
                 {
@@ -74,22 +77,24 @@ public class RunCompareHandler(SignalAnalysisService analysisService)
                     SpectrumDelta = spectrumDelta,
                     BandEnergyDeltas = bandEnergyDeltas,
                     CpbBandDeltas = cpbBandDeltas,
+                    SoundQualityDelta = soundQualityDelta,
                 });
             }
         }
 
-        return Task.FromResult(new CompareResult
+        return new CompareResult
         {
             Files = summaries,
             PairwiseDiffs = pairwiseDiffs,
             RanAt = DateTimeOffset.UtcNow,
-        });
+        };
     }
 
-    private CompareFileSummary BuildFileSummary(
+    private async Task<CompareFileSummary> BuildFileSummaryAsync(
         string filePath,
         double? startSeconds,
-        double? endSeconds)
+        double? endSeconds,
+        CancellationToken ct)
     {
         var signalFile = analysisService.ImportFile(filePath);
         var duration = signalFile.FileInfo.DurationSeconds;
@@ -117,6 +122,28 @@ public class RunCompareHandler(SignalAnalysisService analysisService)
         var bandEnergies = ComputeBandEnergies(firstSpectrumChannel);
         var cpbBands = ComputeCpbBands(signalFile.Channels, resolvedStart, resolvedEnd);
 
+        CompareSoundQuality? soundQuality = null;
+        try
+        {
+            var sqQuery = new RunSoundQualityQuery(
+                FilePath: filePath,
+                StartSeconds: resolvedStart,
+                EndSeconds: resolvedEnd,
+                Method: "mosqito_stationary_zwicker");
+            var sqResult = await soundQualityAnalysisService.AnalyzeAsync(sqQuery, ct);
+            soundQuality = new CompareSoundQuality
+            {
+                LoudnessSone = sqResult.Loudness.Value,
+                SharpnessAcum = sqResult.Sharpness.Value,
+                RoughnessAsper = sqResult.Roughness.Value,
+                Method = sqResult.Parameters.Method,
+            };
+        }
+        catch
+        {
+            // Python sidecar unavailable — SoundQuality stays null, compare still returns level/spectrum/CPB.
+        }
+
         var storedFileName = Path.GetFileName(filePath);
         var displayFileName = storedFileName.Length > 13 && storedFileName[12] == '_'
             ? storedFileName[13..]
@@ -136,6 +163,30 @@ public class RunCompareHandler(SignalAnalysisService analysisService)
             SpectrumCurve = spectrumCurve,
             BandEnergies = bandEnergies,
             CpbBands = cpbBands,
+            SoundQuality = soundQuality,
+        };
+    }
+
+    private static CompareSoundQualityDelta? BuildSoundQualityDelta(
+        CompareFileSummary a,
+        CompareFileSummary b)
+    {
+        if (a.SoundQuality is null || b.SoundQuality is null)
+        {
+            return null;
+        }
+
+        var sqA = a.SoundQuality;
+        var sqB = b.SoundQuality;
+
+        return new CompareSoundQualityDelta
+        {
+            LoudnessDeltaSone = Math.Round(sqB.LoudnessSone - sqA.LoudnessSone, 3),
+            SharpnessDeltaAcum = Math.Round(sqB.SharpnessAcum - sqA.SharpnessAcum, 4),
+            RoughnessDeltaAsper = Math.Round(sqB.RoughnessAsper - sqA.RoughnessAsper, 4),
+            LouderFileId = sqA.LoudnessSone >= sqB.LoudnessSone ? a.FileId : b.FileId,
+            SharperFileId = sqA.SharpnessAcum >= sqB.SharpnessAcum ? a.FileId : b.FileId,
+            RougherFileId = sqA.RoughnessAsper >= sqB.RoughnessAsper ? a.FileId : b.FileId,
         };
     }
 

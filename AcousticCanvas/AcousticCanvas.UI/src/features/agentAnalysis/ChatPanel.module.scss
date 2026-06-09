@@ -419,6 +419,137 @@
   opacity: 0.8;
 }
 
+// ─── Analysis steps collapsible ──────────────────────────
+
+.analysisSteps {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(0, 184, 169, 0.12);
+
+  &[open] .analysisStepsSummary::before {
+    content: '▾ ';
+  }
+}
+
+.analysisStepsSummary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+  padding: 2px 0;
+
+  &::before {
+    content: '▸ ';
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    margin-right: 2px;
+  }
+
+  &::-webkit-details-marker {
+    display: none;
+  }
+
+  &:hover .analysisStepsLabel {
+    color: var(--text-primary);
+  }
+}
+
+.analysisStepsLabel {
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  transition: color 0.12s ease;
+}
+
+.analysisStepsCount {
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.confidenceBadge {
+  font-size: 0.6rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(0, 184, 169, 0.1);
+  border: 1px solid rgba(0, 184, 169, 0.25);
+  color: rgba(0, 184, 169, 0.85);
+}
+
+.confidence_medium {
+  background: rgba(251, 191, 36, 0.08);
+  border-color: rgba(251, 191, 36, 0.3);
+  color: rgba(251, 191, 36, 0.9);
+}
+
+.confidence_low {
+  background: rgba(248, 113, 113, 0.08);
+  border-color: rgba(248, 113, 113, 0.3);
+  color: rgba(248, 113, 113, 0.9);
+}
+
+.analysisStepsList {
+  margin: 6px 0 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.analysisStep {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  padding: 2px 0;
+}
+
+.analysisStepFailed {
+  color: rgba(248, 113, 113, 0.8);
+}
+
+.analysisStepIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: rgba(0, 184, 169, 0.15);
+  color: rgba(0, 184, 169, 0.9);
+
+  .analysisStepFailed & {
+    background: rgba(248, 113, 113, 0.1);
+    color: rgba(248, 113, 113, 0.8);
+  }
+}
+
+.analysisStepName {
+  flex: 1;
+  min-width: 0;
+}
+
+.analysisStepError {
+  font-size: 0.65rem;
+  color: rgba(248, 113, 113, 0.7);
+  font-style: italic;
+  truncate: ellipsis;
+}
+
 // ─── Selection chip ───────────────────────────────────────
 
 .selectionChipBar {
