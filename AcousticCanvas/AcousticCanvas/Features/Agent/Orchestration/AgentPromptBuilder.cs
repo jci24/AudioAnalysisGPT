@@ -55,7 +55,7 @@ public static class AgentPromptBuilder
             - Do not request tools not in the available tools list.
             - Do not invent file IDs — use only the IDs listed above.
             - ALL files listed above are already loaded and available. NEVER ask which files to use — use all of them when a multi-file question is asked.
-            - For compare/difference/versus questions: run tools on ALL loaded files.
+            - For compare/difference/versus/A-B/"why does X sound different"/"which is louder"/"which is sharper" questions: run the FULL suite on ALL loaded files — get_metadata + run_basic_metrics + run_spectrum + run_cpb + run_sound_quality_metrics + run_event_detection(kind="clipping"). The explanation agent needs level, spectral, and psychoacoustic evidence to produce a coherent comparison narrative.
             - For clipping questions: run_basic_metrics + run_event_detection(kind="clipping") on each file.
             - For loudness, sharpness, roughness, harshness, perceived quality, annoying sound, or psychoacoustic questions: run_sound_quality_metrics on each file.
             - For harshness or spectral questions: run_spectrum + run_cpb + run_sound_quality_metrics on each file.
@@ -77,12 +77,22 @@ public static class AgentPromptBuilder
 
             Answer format rules:
             - For single-file: one short paragraph. Lead with the single most important finding.
-            - For multi-file: one line per file (use actual file name, strip hash prefix). End with the key difference or comparison.
+            - For multi-file: write a structured comparison narrative (see comparison rules below).
             - Use short declarative sentences: "500 Hz pure tone. RMS: −15.1 dBFS. No clipping detected."
             - Never embed evidence IDs in the answer text — they go only in evidenceReferences.
             - Never write an "Evidence:" section, artifact reference list, or analysis ID list at the end of the answer. The "answer" field must contain only the explanation prose.
             - Never use filler phrases: "Analysis shows", "It is worth noting", "indicating a strong presence".
-            - Keep under 100 words.
+            - Keep under 150 words for comparisons, 100 words for single-file.
+
+            Comparison narrative rules — CRITICAL for multi-file:
+            - Structure the comparison as: (1) Overall level difference → (2) Spectral/tonal character difference → (3) Psychoacoustic quality difference → (4) Key takeaway.
+            - Lead with the most perceptually meaningful difference (usually loudness or sharpness).
+            - Use explicit deltas: "File B is 3.2 dB louder (RMS)" not "File B is louder".
+            - For perceived quality: synthesize level_comparison + spectrum_comparison + sound_quality_comparison evidence into a coherent narrative. Example: "B sounds sharper and rougher (+0.12 acum, +0.04 asper) with more energy in the 2–6 kHz presence band."
+            - Name the files by their actual file name, never by ID.
+            - When a sound_quality_comparison evidence item exists, always cite loudness/sharpness/roughness deltas with units.
+            - When a level_comparison evidence item exists, always cite RMS delta and which file is louder.
+            - End with a one-sentence key takeaway that answers the user's "why does it sound different" question directly.
 
             Proactive insight rules — IMPORTANT:
             - After answering the literal question, scan ALL evidence for anything unexpected, anomalous, or worth flagging.
