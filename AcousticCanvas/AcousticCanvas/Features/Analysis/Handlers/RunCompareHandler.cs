@@ -101,6 +101,14 @@ public class RunCompareHandler(
         var resolvedStart = startSeconds ?? 0.0;
         var resolvedEnd = endSeconds ?? duration;
 
+        // Launch Python concurrently so its startup overlaps the synchronous DSP work below.
+        var sqQuery = new RunSoundQualityQuery(
+            FilePath: filePath,
+            StartSeconds: resolvedStart,
+            EndSeconds: resolvedEnd,
+            Method: "mosqito_stationary_zwicker");
+        var sqTask = soundQualityAnalysisService.AnalyzeAsync(sqQuery, ct);
+
         var levelAnalysis = LevelAnalyzer.Analyze(signalFile.Channels);
         var firstLevelChannel = levelAnalysis.Channels.Count > 0 ? levelAnalysis.Channels[0] : null;
         var peakDb = firstLevelChannel?.PeakDb ?? 0.0;
@@ -120,18 +128,14 @@ public class RunCompareHandler(
 
         var spectrumCurve = BuildSpectrumCurve(firstSpectrumChannel);
         var bandEnergies = ComputeBandEnergies(firstSpectrumChannel);
-        var cpbBands = ComputeCpbBands(signalFile.Channels, resolvedStart, resolvedEnd);
+        var sampleRate = signalFile.Channels.Count > 0 ? signalFile.Channels[0].SampleRate : 0;
+        var cpbBands = ComputeCpbBands(spectrumAnalysis, resolvedStart, resolvedEnd, sampleRate);
 
         CompareSoundQuality? soundQuality = null;
         string? soundQualityUnavailableReason = null;
         try
         {
-            var sqQuery = new RunSoundQualityQuery(
-                FilePath: filePath,
-                StartSeconds: resolvedStart,
-                EndSeconds: resolvedEnd,
-                Method: "mosqito_stationary_zwicker");
-            var sqResult = await soundQualityAnalysisService.AnalyzeAsync(sqQuery, ct);
+            var sqResult = await sqTask;
             soundQuality = new CompareSoundQuality
             {
                 LoudnessSone = sqResult.Loudness.Value,
@@ -176,17 +180,19 @@ public class RunCompareHandler(
     }
 
     private static IReadOnlyList<CompareCpbBand> ComputeCpbBands(
-        IReadOnlyList<SignalChannel> channels,
+        SpectrumAnalysis spectrumAnalysis,
         double startSeconds,
-        double endSeconds)
+        double endSeconds,
+        int sampleRate)
     {
-        var cpbAnalysis = CpbAnalyzer.Analyze(
-            channels,
+        var cpbAnalysis = CpbAnalyzer.AnalyzeFromSpectrum(
+            spectrumAnalysis,
             startSeconds,
             endSeconds,
             DefaultCpbBandMode,
             DefaultFftSize,
-            DefaultOverlap);
+            DefaultOverlap,
+            sampleRate);
 
         var firstChannel = cpbAnalysis.Channels.Count > 0 ? cpbAnalysis.Channels[0] : null;
         if (firstChannel is null)

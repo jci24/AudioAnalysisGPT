@@ -27,6 +27,7 @@ builder.Services.AddSingleton<ICpbFilterBankClient, PythonCpbFilterBankClient>()
 builder.Services.AddSingleton<CpbAnalysisService>();
 builder.Services.AddSingleton<RunCpbHandler>();
 builder.Services.AddSingleton<ISoundQualityClient, PythonSoundQualityClient>();
+builder.Services.AddSingleton<SoundQualityCacheStore>();
 builder.Services.AddSingleton<SoundQualityAnalysisService>();
 builder.Services.AddSingleton<RunSoundQualityHandler>();
 builder.Services.AddSingleton<RunCompareHandler>();
