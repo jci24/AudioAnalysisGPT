@@ -13,11 +13,15 @@ import type { ToolStep } from './chatSlice';
 import { activeSelectionSelector } from '../waveform/waveformSelectionSlice';
 import type { ChatMessage } from './chatSlice';
 import { AGENT_MODELS } from './utils/agentModels';
-import { artifactFocused } from './agentWorkspaceSlice';
+import { agentArtifactsSelector, artifactFocused } from './agentWorkspaceSlice';
 import { ATTACH_ACCEPT } from './chatAttachments';
 import { useChatInput } from './useChatInput';
 import { AgentAnswerPanel } from './AgentAnswerPanel';
 import type { MentionCandidate } from './useChatInput';
+import type { AgentEvidenceItem } from './utils/evidenceFormatting';
+import { getEvidenceLabel } from './utils/evidenceFormatting';
+import { getEvidenceArtifactId } from './utils/evidenceArtifactMatching';
+import type { AgentArtifact } from './agentWorkspaceSlice';
 import styles from './ChatPanel.module.scss';
 
 const SUGGESTION_PROMPTS: { text: string; icon: typeof IconWaveSquare }[] = [
@@ -46,56 +50,95 @@ function UserMessage({ message }: { message: ChatMessage }): JSX.Element {
   );
 }
 
-type EvidenceToken = {
-  type: 'compare_result' | 'find_result' | 'findings_result' | 'tool_result' | 'report' | 'marker_added' | 'selection_set';
-  id: string;
-};
-
-const EVIDENCE_LABELS: Record<EvidenceToken['type'], string> = {
-  compare_result: 'Compare result',
-  find_result: 'Find result',
-  findings_result: 'Findings',
-  tool_result: 'Analysis',
-  report: 'Report',
-  marker_added: 'Marker',
-  selection_set: 'Selection',
-};
-
 function getShortArtifactId(id: string): string {
   return id.length > 6 ? id.slice(-6) : id;
 }
 
-function parseEvidenceTokens(content: string): { text: string; tokens: EvidenceToken[] } {
+function parseEvidenceTokens(content: string): string {
   const evidenceRegex = /\[(analysis_result|compare_result|find_result|findings_result|tool_result|report|marker_added|selection_set):([0-9a-fA-F-]{8,})\]/g;
-  const tokens: EvidenceToken[] = [];
+  const withoutTokens = content.replace(evidenceRegex, '');
 
-  const withoutTokens = content.replace(evidenceRegex, (_, type: string, id: string) => {
-    if (type !== 'analysis_result') {
-      tokens.push({ type: type as EvidenceToken['type'], id });
-    }
-    return '';
-  });
-
-  const plainText = withoutTokens
+  return withoutTokens
     .replace(/\n+Evidence:\s*[\s\S]*$/i, '')
     .replace(/^\d+\.\s*$/gm, '')          // remove list items emptied by token stripping
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+}
 
-  return {
-    text: plainText,
-    tokens,
-  };
+function EvidenceCitations({
+  evidenceReferences,
+  evidenceItems,
+  artifacts,
+  onArtifactClick,
+}: {
+  evidenceReferences: string[] | undefined;
+  evidenceItems: AgentEvidenceItem[] | undefined;
+  artifacts: AgentArtifact[];
+  onArtifactClick: (evidenceItem: AgentEvidenceItem) => void;
+}): JSX.Element | null {
+  if (!evidenceReferences || !evidenceItems || evidenceReferences.length === 0) {
+    return null;
+  }
+
+  const referencedEvidenceItems = evidenceReferences
+    .map((referenceId) => evidenceItems.find((item) => item.evidenceId === referenceId) ?? null)
+    .filter((item): item is AgentEvidenceItem => item !== null);
+
+  if (referencedEvidenceItems.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className={styles.evidenceCitationSection}>
+      <div className={styles.evidenceCitationHeading}>Evidence</div>
+      <div className={styles.evidenceCitationList}>
+        {referencedEvidenceItems.map((item) => {
+          const artifactId = getEvidenceArtifactId(item, artifacts);
+          const label = getEvidenceLabel(item.type);
+          const fileName = typeof item.data.fileName === 'string' ? item.data.fileName : null;
+          const fileNameA = typeof item.data.fileNameA === 'string' ? item.data.fileNameA : null;
+          const fileNameB = typeof item.data.fileNameB === 'string' ? item.data.fileNameB : null;
+          const subject = fileName ?? (fileNameA && fileNameB ? `${fileNameA} vs ${fileNameB}` : null);
+
+          return (
+            artifactId ? (
+              <button
+                key={item.evidenceId}
+                type="button"
+                className={styles.evidenceCitationPill}
+                onClick={() => onArtifactClick(item)}
+                title="Open related workspace artifact"
+              >
+                <span>{label}</span>
+                {subject && <span className={styles.evidenceCitationSubject}>{subject}</span>}
+                <span className={styles.evidenceCitationId}>{getShortArtifactId(item.evidenceId)}</span>
+              </button>
+            ) : (
+              <span key={item.evidenceId} className={styles.evidenceCitationPill}>
+                <span>{label}</span>
+                {subject && <span className={styles.evidenceCitationSubject}>{subject}</span>}
+                <span className={styles.evidenceCitationId}>{getShortArtifactId(item.evidenceId)}</span>
+              </span>
+            )
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function AssistantMessage({ message }: { message: ChatMessage }): JSX.Element {
   const dispatch = useAppDispatch();
-  const parsed = parseEvidenceTokens(message.content);
+  const artifacts = useAppSelector(agentArtifactsSelector);
+  const parsedText = parseEvidenceTokens(message.content);
   const isThinkingMessage = message.status === 'thinking';
   const isFailedMessage = message.status === 'failed';
 
-  const handleEvidenceClick = (token: EvidenceToken): void => {
-    dispatch(artifactFocused(token.id));
+  const handleEvidenceClick = (evidenceItem: AgentEvidenceItem): void => {
+    const artifactId = getEvidenceArtifactId(evidenceItem, artifacts);
+    if (artifactId !== null) {
+      dispatch(artifactFocused(artifactId));
+    }
   };
 
   return (
@@ -113,24 +156,14 @@ function AssistantMessage({ message }: { message: ChatMessage }): JSX.Element {
         ) : (
           <>
             <div className={styles.markdownBody}>
-              <ReactMarkdown>{parsed.text}</ReactMarkdown>
+              <ReactMarkdown>{parsedText}</ReactMarkdown>
             </div>
-            {parsed.tokens.length > 0 && (
-              <div className={styles.evidenceRow}>
-                <span className={styles.evidenceLabel}>Sources:</span>
-                {parsed.tokens.map((token) => (
-                  <button
-                    type="button"
-                    key={`${token.type}:${token.id}`}
-                    className={styles.evidenceLink}
-                    onClick={() => handleEvidenceClick(token)}
-                    title={`Open ${token.type.replace('_', ' ')} artifact`}
-                  >
-                    {EVIDENCE_LABELS[token.type]} #{getShortArtifactId(token.id)}
-                  </button>
-                ))}
-              </div>
-            )}
+            <EvidenceCitations
+              evidenceReferences={message.evidenceReferences}
+              evidenceItems={message.evidenceItems}
+              artifacts={artifacts}
+              onArtifactClick={handleEvidenceClick}
+            />
             {message.toolSteps && message.toolSteps.length > 0 && (
               <AnalysisSteps steps={message.toolSteps} confidence={message.confidence} />
             )}
@@ -189,8 +222,8 @@ function PlanMessage({ message }: { message: ChatMessage }): JSX.Element {
             <span className={styles.planLabel}>Analysing:</span>
             {tools.length > 0 && (
               <span className={styles.planTools}>
-                {tools.map((tool) => (
-                  <span key={tool} className={styles.planToolTag}>{TOOL_LABELS[tool] ?? tool}</span>
+                {tools.map((tool, index) => (
+                  <span key={`${tool}-${index}`} className={styles.planToolTag}>{TOOL_LABELS[tool] ?? tool}</span>
                 ))}
               </span>
             )}
@@ -198,7 +231,10 @@ function PlanMessage({ message }: { message: ChatMessage }): JSX.Element {
         )}
       </div>
       {!isPlanning && message.plannerReason && (
-        <p className={styles.planReason}>{message.plannerReason}</p>
+        <details className={styles.planReasonDetails}>
+          <summary className={styles.planReasonSummary}>Why these analyses</summary>
+          <p className={styles.planReason}>{message.plannerReason}</p>
+        </details>
       )}
     </div>
   );

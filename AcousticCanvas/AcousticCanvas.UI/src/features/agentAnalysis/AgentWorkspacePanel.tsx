@@ -3,7 +3,7 @@ import { useRef, useEffect, useState } from 'react';
 import { ComparisonView } from '../comparison/ComparisonView';
 import { IconArrowRight, IconFileMusic, IconAlignBoxLeftMiddle, IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useAppDispatch, useAppSelector } from '../../store/reduxHooks';
-import { agentArtifactsSelector, focusedArtifactIdSelector, artifactFocusCleared } from './agentWorkspaceSlice';
+import { agentArtifactsSelector, expandedArtifactIdsSelector, focusedArtifactIdSelector, artifactFocusCleared } from './agentWorkspaceSlice';
 import type {
   AgentArtifact,
   AgentArtifactAnalysis,
@@ -18,39 +18,101 @@ import type {
 import { setActiveMode } from '../navigation/navigationSlice';
 import { activeSelectionSelector } from '../waveform/waveformSelectionSlice';
 import { projectFilesSelector, selectedSignalIdSelector } from '../project/projectSlice';
+import { chatMessagesSelector } from './chatSlice';
+import type { ChatMessage } from './chatSlice';
 import styles from './AgentWorkspacePanel.module.scss';
 
-function WorkspaceContextCard(): JSX.Element | null {
+const TOOL_LABELS: Record<string, string> = {
+  get_metadata: 'Metadata',
+  run_basic_metrics: 'Level metrics',
+  run_event_detection: 'Event detection',
+  run_spectrum: 'Spectrum',
+  run_cpb: 'CPB bands',
+  run_sound_quality_metrics: 'Sound quality',
+  run_findings: 'Findings',
+};
+
+function getLastCompletedAssistantMessage(messages: ChatMessage[]): ChatMessage | null {
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const message = messages[index];
+    if (message.role === 'assistant' && message.status === 'completed') {
+      return message;
+    }
+  }
+
+  return null;
+}
+
+function WorkspaceContextCard(): JSX.Element {
   const files = useAppSelector(projectFilesSelector);
   const selectedSignalId = useAppSelector(selectedSignalIdSelector);
   const activeSelection = useAppSelector(activeSelectionSelector);
+  const messages = useAppSelector(chatMessagesSelector);
 
   const activeFile = files.find((file) => file.id === selectedSignalId) ?? null;
-
-  if (!activeFile) return null;
+  const lastAssistantMessage = getLastCompletedAssistantMessage(messages);
+  const plannedTools = lastAssistantMessage?.plannedTools ?? [];
+  const limitations = lastAssistantMessage?.limitations ?? [];
+  const hasValidationWarning = lastAssistantMessage?.validationWarning === true;
 
   const hasValidSelection = activeSelection !== null && activeSelection.endSeconds > activeSelection.startSeconds;
 
   return (
     <div className={styles.contextCard}>
-      <div className={styles.contextRow}>
-        <IconFileMusic size={12} className={styles.contextIcon} />
-        <span className={styles.contextFileName} title={activeFile.name}>{activeFile.name}</span>
-      </div>
-      <div className={styles.contextMeta}>
-        {activeFile.sampleRate / 1000}kHz
-        {' · '}{activeFile.channels}ch
-        {activeFile.bitDepth ? ` · ${activeFile.bitDepth}bit` : ''}
+      <div className={styles.contextHeading}>Referenced context</div>
+      <div className={styles.contextSection}>
+        <div className={styles.contextSectionLabel}>Files</div>
+        {files.length === 0 && (
+          <div className={styles.contextEmpty}>No loaded files</div>
+        )}
+        {files.map((file) => (
+          <div key={file.id} className={styles.contextFileBlock}>
+            <div className={styles.contextRow}>
+              <IconFileMusic size={12} className={styles.contextIcon} />
+              <span className={styles.contextFileName} title={file.name}>{file.name}</span>
+              {activeFile?.id === file.id && <span className={styles.contextActiveTag}>active</span>}
+            </div>
+            <div className={styles.contextMeta}>
+              {file.sampleRate / 1000}kHz
+              {' · '}{file.channels}ch
+              {file.bitDepth ? ` · ${file.bitDepth}bit` : ''}
+            </div>
+          </div>
+        ))}
       </div>
       {hasValidSelection && activeSelection && (
-        <div className={styles.contextRow}>
-          <IconAlignBoxLeftMiddle size={12} className={styles.contextSelectionIcon} />
-          <span className={styles.contextSelectionLabel}>
-            {activeSelection.startSeconds.toFixed(3)}s
-            {' – '}
-            {activeSelection.endSeconds.toFixed(3)}s
-            {' ('}{(activeSelection.endSeconds - activeSelection.startSeconds).toFixed(3)}s{')'}
-          </span>
+        <div className={styles.contextSection}>
+          <div className={styles.contextSectionLabel}>Selection</div>
+          <div className={styles.contextRow}>
+            <IconAlignBoxLeftMiddle size={12} className={styles.contextSelectionIcon} />
+            <span className={styles.contextSelectionLabel}>
+              {activeSelection.startSeconds.toFixed(3)}s
+              {' – '}
+              {activeSelection.endSeconds.toFixed(3)}s
+              {' ('}{(activeSelection.endSeconds - activeSelection.startSeconds).toFixed(3)}s{')'}
+            </span>
+          </div>
+        </div>
+      )}
+      {plannedTools.length > 0 && (
+        <div className={styles.contextSection}>
+          <div className={styles.contextSectionLabel}>Analyses</div>
+          <div className={styles.contextToolList}>
+            {plannedTools.map((tool, index) => (
+              <span key={`${tool}-${index}`} className={styles.contextToolTag}>{TOOL_LABELS[tool] ?? tool}</span>
+            ))}
+          </div>
+        </div>
+      )}
+      {(limitations.length > 0 || hasValidationWarning) && (
+        <div className={styles.contextSection}>
+          <div className={styles.contextSectionLabel}>Limits</div>
+          {hasValidationWarning && (
+            <div className={styles.contextWarning}>Evidence references need review</div>
+          )}
+          {limitations.slice(0, 3).map((limitation) => (
+            <div key={limitation} className={styles.contextLimitation}>{limitation}</div>
+          ))}
         </div>
       )}
     </div>
@@ -229,12 +291,8 @@ function getSeverityClass(severity: string): string {
 }
 
 function FindingsCard({ artifact }: { artifact: AgentArtifactFindings }): JSX.Element {
-  const [expanded, setExpanded] = useState(false);
-  const focusedId = useAppSelector(focusedArtifactIdSelector);
-
-  useEffect(() => {
-    if (focusedId === artifact.id) setExpanded(true);
-  }, [focusedId, artifact.id]);
+  const expandedArtifactIds = useAppSelector(expandedArtifactIdsSelector);
+  const isExpanded = expandedArtifactIds.includes(artifact.id);
 
   return (
     <div className={`${styles.card} ${styles.cardFindings}`}>
@@ -247,10 +305,10 @@ function FindingsCard({ artifact }: { artifact: AgentArtifactFindings }): JSX.El
           <span className={styles.metricLabel}>issues found</span>
           <span className={`${styles.metricValue} ${styles.metricValueHighlight}`}>{artifact.findingCount}</span>
         </div>
-        {!expanded && (
+        {!isExpanded && (
           <div className={styles.findingsCollapsedHint}>Click the Findings badge in the chat to see details</div>
         )}
-        {expanded && artifact.findings.map((f) => (
+        {isExpanded && artifact.findings.map((f) => (
           <div key={f.findingId} className={styles.findingRow}>
             <div className={styles.findingRowHeader}>
               <span className={`${styles.severityBadge} ${getSeverityClass(f.severity)}`}>{f.severity}</span>
@@ -314,12 +372,8 @@ function FindCard({ artifact }: { artifact: AgentArtifactFind }): JSX.Element {
 }
 
 function ToolResultCard({ artifact }: { artifact: AgentArtifactToolResult }): JSX.Element {
-  const [expanded, setExpanded] = useState(false);
-  const focusedId = useAppSelector(focusedArtifactIdSelector);
-
-  useEffect(() => {
-    if (focusedId === artifact.id) setExpanded(true);
-  }, [focusedId, artifact.id]);
+  const expandedArtifactIds = useAppSelector(expandedArtifactIdsSelector);
+  const isExpanded = expandedArtifactIds.includes(artifact.id);
 
   return (
     <div className={`${styles.card} ${styles.cardToolResult}`}>
@@ -327,12 +381,12 @@ function ToolResultCard({ artifact }: { artifact: AgentArtifactToolResult }): JS
         <span className={`${styles.cardKindTag} ${styles.cardKindTagToolResult}`}>{artifact.title}</span>
         <span className={styles.cardTimestamp}>{formatTimestamp(artifact.timestamp)}</span>
       </div>
-      {!expanded && (
+      {!isExpanded && (
         <div className={styles.cardBody}>
           <div className={styles.findingsCollapsedHint}>Click the badge in the chat to see details</div>
         </div>
       )}
-      {expanded && (
+      {isExpanded && (
         <div className={styles.cardBody}>
           {artifact.rows.map((row, i) => (
             <div key={i} className={styles.metricRow}>

@@ -1,4 +1,5 @@
 import { toFriendlyAgentError } from './agentErrorMessage';
+import type { AgentEvidenceItem } from '../utils/evidenceFormatting';
 
 const API_BASE_URL = 'http://localhost:5146';
 
@@ -15,6 +16,7 @@ export type AgentAskResponse = {
   answer: string;
   evidencePackageId: string;
   evidenceReferences: string[];
+  evidenceItems: AgentEvidenceItem[];
   confidence: 'high' | 'medium' | 'low';
   limitations: string[];
   suggestedNextSteps: string[];

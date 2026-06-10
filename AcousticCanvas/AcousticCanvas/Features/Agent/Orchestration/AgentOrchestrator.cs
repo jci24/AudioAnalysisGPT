@@ -90,7 +90,8 @@ public sealed class AgentOrchestrator(
             ConversationId: conversationId,
             Answer: answerWithEmbeddedTokens,
             EvidencePackageId: evidencePackage.EvidencePackageId,
-            EvidenceReferences: [],
+            EvidenceReferences: finalAnswer.EvidenceReferences,
+            EvidenceItems: BuildEvidenceItems(evidencePackage),
             Confidence: finalAnswer.Confidence,
             Limitations: MergeAndDeduplicate(finalAnswer.Limitations, evidencePackage.Limitations),
             SuggestedNextSteps: finalAnswer.SuggestedNextSteps,
@@ -131,7 +132,8 @@ public sealed class AgentOrchestrator(
             ConversationId: conversationId,
             Answer: answerWithEmbeddedTokens,
             EvidencePackageId: evidencePackage.EvidencePackageId,
-            EvidenceReferences: [],
+            EvidenceReferences: finalAnswer.EvidenceReferences,
+            EvidenceItems: BuildEvidenceItems(evidencePackage),
             Confidence: finalAnswer.Confidence,
             Limitations: finalAnswer.Limitations,
             SuggestedNextSteps: finalAnswer.SuggestedNextSteps,
@@ -195,6 +197,21 @@ public sealed class AgentOrchestrator(
         return dict.Count > 0 ? dict : null;
     }
 
+    private static IReadOnlyList<AgentEvidenceItem> BuildEvidenceItems(EvidencePackage evidencePackage)
+    {
+        var evidenceItems = new List<AgentEvidenceItem>();
+
+        foreach (var item in evidencePackage.KeyEvidence)
+        {
+            evidenceItems.Add(new AgentEvidenceItem(
+                EvidenceId: item.EvidenceId,
+                Type: item.Type,
+                Data: item.Data));
+        }
+
+        return evidenceItems;
+    }
+
     private static IReadOnlyList<AgentToolExecutionRecord> BuildToolExecutionRecords(
         List<ToolExecutionOutput> toolOutputs)
     {
@@ -246,6 +263,7 @@ public sealed class AgentOrchestrator(
             Answer: question,
             EvidencePackageId: string.Empty,
             EvidenceReferences: [],
+            EvidenceItems: [],
             Confidence: "low",
             Limitations: ["Clarification needed before analysis can run."],
             SuggestedNextSteps: [],
@@ -266,6 +284,7 @@ public sealed class AgentOrchestrator(
             Answer: reason,
             EvidencePackageId: string.Empty,
             EvidenceReferences: [],
+            EvidenceItems: [],
             Confidence: "low",
             Limitations: ["No analysis was run for this response."],
             SuggestedNextSteps: [$"To analyze this file, ask a specific question such as: 'Is there clipping in {userQuestion}'"],

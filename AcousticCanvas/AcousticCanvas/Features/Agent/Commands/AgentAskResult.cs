@@ -5,6 +5,7 @@ public record AgentAskResult(
     string Answer,
     string EvidencePackageId,
     IReadOnlyList<string> EvidenceReferences,
+    IReadOnlyList<AgentEvidenceItem> EvidenceItems,
     string Confidence,
     IReadOnlyList<string> Limitations,
     IReadOnlyList<string> SuggestedNextSteps,
@@ -13,6 +14,12 @@ public record AgentAskResult(
     IReadOnlyDictionary<string, object>? ToolResultsData,
     IReadOnlyList<string> PlannedTools,
     string? PlannerReason
+);
+
+public record AgentEvidenceItem(
+    string EvidenceId,
+    string Type,
+    IReadOnlyDictionary<string, object?> Data
 );
 
 public record AgentToolExecutionRecord(

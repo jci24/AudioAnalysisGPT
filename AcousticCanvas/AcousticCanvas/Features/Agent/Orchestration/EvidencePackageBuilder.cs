@@ -414,11 +414,6 @@ public static class EvidencePackageBuilder
                 ["type"] = "metadata",
             };
 
-            if (fileResult.TryGetProperty("fileName", out var nameEl))
-            {
-                evidenceData["fileName"] = nameEl.GetString();
-            }
-
             if (fileResult.TryGetProperty("durationSeconds", out var durationEl))
             {
                 evidenceData["durationSeconds"] = durationEl.GetDouble();

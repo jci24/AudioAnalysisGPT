@@ -289,41 +289,73 @@
   }
 }
 
-// ─── Evidence row ─────────────────────────────────────────
+// ─── Evidence citations ──────────────────────────────────
 
-.evidenceRow {
+.evidenceCitationSection {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(128, 128, 128, 0.08);
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(128, 128, 128, 0.08);
 }
 
-.evidenceLabel {
+.evidenceCitationHeading {
   font-size: 0.65rem;
   font-family: var(--font-mono);
+  font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
-.evidenceLink {
-  font-size: 0.65rem;
-  font-family: var(--font-mono);
-  font-weight: 500;
-  color: #00b8a9;
-  background: rgba(0, 184, 169, 0.06);
-  border: 1px solid rgba(0, 184, 169, 0.2);
+.evidenceCitationList {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.evidenceCitationPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 3px 7px;
+  border: 1px solid rgba(0, 184, 169, 0.12);
   border-radius: 6px;
-  padding: 3px 8px;
+  background: rgba(0, 184, 169, 0.035);
+  font-size: 0.66rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: #00b8a9;
+  text-decoration: none;
+}
+
+.evidenceCitationId {
+  font-size: 0.58rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  opacity: 0.65;
+}
+
+.evidenceCitationSubject {
+  min-width: 0;
+  max-width: 210px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+button.evidenceCitationPill {
   cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
 
   &:hover {
-    background: rgba(0, 184, 169, 0.12);
-    border-color: rgba(0, 184, 169, 0.4);
+    background: rgba(0, 184, 169, 0.08);
+    border-color: rgba(0, 184, 169, 0.24);
   }
 }
 
@@ -407,8 +439,26 @@
   border-radius: 4px;
 }
 
+.planReasonDetails {
+  margin-top: 4px;
+}
+
+.planReasonSummary {
+  width: max-content;
+  max-width: 100%;
+  font-size: 0.66rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0.75;
+
+  &:hover {
+    color: var(--text-primary);
+  }
+}
+
 .planReason {
-  margin: 4px 0 0 0;
+  margin: 4px 0 0 14px;
   font-size: 0.7rem;
   color: var(--text-muted);
   font-style: italic;

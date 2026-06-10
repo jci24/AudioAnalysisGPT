@@ -32,12 +32,41 @@
 
 .contextCard {
   flex-shrink: 0;
-  padding: 8px 12px;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--border);
   background-color: var(--bg-surface);
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 8px;
+}
+
+.contextHeading {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.contextSection {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.contextSectionLabel {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.contextFileBlock {
+  min-width: 0;
 }
 
 .contextRow {
@@ -67,6 +96,20 @@
   min-width: 0;
 }
 
+.contextActiveTag {
+  flex-shrink: 0;
+  font-size: 0.55rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #00b8a9;
+  background: rgba(0, 184, 169, 0.08);
+  border: 1px solid rgba(0, 184, 169, 0.18);
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+
 .contextMeta {
   font-size: 0.68rem;
   font-family: var(--font-mono);
@@ -81,6 +124,35 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.contextEmpty,
+.contextWarning,
+.contextLimitation {
+  font-size: 0.64rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.contextWarning {
+  color: #f0a040;
+}
+
+.contextToolList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.contextToolTag {
+  font-size: 0.58rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  padding: 2px 5px;
+  background: rgba(0, 184, 169, 0.06);
+  border: 1px solid rgba(0, 184, 169, 0.12);
+  border-radius: 4px;
 }
 
 .headerTitle {

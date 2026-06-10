@@ -50,6 +50,7 @@ const emptyState: RootState = {
   agentWorkspace: {
     artifacts: [],
     focusedArtifactId: null,
+    expandedArtifactIds: [],
   },
   cpb: {
     result: null,

@@ -1,6 +1,7 @@
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { DEFAULT_MODEL_ID } from './utils/agentModels';
+import type { AgentEvidenceItem } from './utils/evidenceFormatting';
 
 export type ChatRole = 'user' | 'assistant' | 'tool_call' | 'plan';
 
@@ -23,6 +24,10 @@ export type ChatMessage = {
   toolStatus?: ToolCallStatus;
   toolSteps?: ToolStep[];
   confidence?: string;
+  evidenceReferences?: string[];
+  evidenceItems?: AgentEvidenceItem[];
+  limitations?: string[];
+  validationWarning?: boolean;
   plannedTools?: string[];
   plannerReason?: string | null;
   planStatus?: 'planning' | 'done';
@@ -53,7 +58,19 @@ const chatSlice = createSlice({
       });
       state.isThinking = true;
     },
-    assistantMessageReceived: (state, action: PayloadAction<{ id: string; content: string; timestamp: string; toolSteps?: ToolStep[]; confidence?: string }>) => {
+    assistantMessageReceived: (state, action: PayloadAction<{
+      id: string;
+      content: string;
+      timestamp: string;
+      toolSteps?: ToolStep[];
+      confidence?: string;
+      evidenceReferences?: string[];
+      evidenceItems?: AgentEvidenceItem[];
+      limitations?: string[];
+      validationWarning?: boolean;
+      plannedTools?: string[];
+      plannerReason?: string | null;
+    }>) => {
       const existingMessage = state.messages.find((message) => message.id === action.payload.id);
       if (existingMessage && existingMessage.role === 'assistant') {
         existingMessage.content = action.payload.content;
@@ -61,6 +78,12 @@ const chatSlice = createSlice({
         existingMessage.status = 'completed';
         existingMessage.toolSteps = action.payload.toolSteps;
         existingMessage.confidence = action.payload.confidence;
+        existingMessage.evidenceReferences = action.payload.evidenceReferences;
+        existingMessage.evidenceItems = action.payload.evidenceItems;
+        existingMessage.limitations = action.payload.limitations;
+        existingMessage.validationWarning = action.payload.validationWarning;
+        existingMessage.plannedTools = action.payload.plannedTools;
+        existingMessage.plannerReason = action.payload.plannerReason;
       } else {
         state.messages.push({
           id: action.payload.id,
@@ -70,6 +93,12 @@ const chatSlice = createSlice({
           status: 'completed',
           toolSteps: action.payload.toolSteps,
           confidence: action.payload.confidence,
+          evidenceReferences: action.payload.evidenceReferences,
+          evidenceItems: action.payload.evidenceItems,
+          limitations: action.payload.limitations,
+          validationWarning: action.payload.validationWarning,
+          plannedTools: action.payload.plannedTools,
+          plannerReason: action.payload.plannerReason,
         });
       }
       state.isThinking = false;
