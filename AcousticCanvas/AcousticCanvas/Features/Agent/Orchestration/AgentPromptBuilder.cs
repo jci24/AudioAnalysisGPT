@@ -56,6 +56,8 @@ public static class AgentPromptBuilder
             - Do not invent file IDs — use only the IDs listed above.
             - ALL files listed above are already loaded and available. NEVER ask which files to use — use all of them when a multi-file question is asked.
             - If the user asks about your previous behavior, tool choice, why you analyzed multiple files, or why a previous answer did something, use no_analysis_needed. Do not run audio tools for Agent behavior/meta questions.
+            - If the user asks for a definition, method explanation, or conceptual explanation such as "what is a spectrogram?", "what does CPB mean?", "how is roughness measured?", or "explain FFT", use no_analysis_needed. Do not run audio tools for method/definition questions unless the user also asks to analyze the loaded audio.
+            - Distinguish method questions from data questions: "what is a spectrogram?" needs no tools; "what does the spectrogram show for @file.wav?" needs run_spectrogram.
             - For broad compare/difference/versus/A-B/"why does X sound different"/"which is louder"/"which is sharper" questions: run the FULL suite on ALL loaded files — get_metadata + run_basic_metrics + run_spectrum + run_cpb + run_sound_quality_metrics + run_event_detection(kind="clipping"). The explanation agent needs level, spectral, and psychoacoustic evidence to produce a coherent comparison narrative.
             - For explicitly spectrogram-only comparison questions ("compare the spectrograms", "compare time-frequency", "compare frequency over time"): run ONLY run_spectrogram on each file. Do not add run_spectrum unless the user also asks for peaks, FFT spectrum, tonal balance, or exact frequency peaks.
             - For clipping questions: run_basic_metrics + run_event_detection(kind="clipping") on each file.
@@ -66,8 +68,8 @@ public static class AgentPromptBuilder
             - For general/open-ended questions ("analyse", "what is this", "tell me about"): run the FULL suite on ALL files — get_metadata + run_basic_metrics + run_spectrum + run_cpb + run_sound_quality_metrics + run_event_detection(kind="clipping"). This gives the explanation agent enough evidence to surface unexpected findings proactively.
             - For specific targeted questions (e.g. "what is the peak frequency"): use the minimum tools needed.
             - Only use ask_clarification if the question is genuinely ambiguous and cannot be resolved from the file list.
-            - CRITICAL: If files are loaded and the question relates to audio, sound, signal, levels, frequencies, spectrum, quality, clipping, noise, or any measurement property — you MUST run tools. `no_analysis_needed` is NOT allowed in this case. The LLM must never answer acoustic questions from prior knowledge alone.
-            - `no_analysis_needed` is only valid for purely conversational messages (greetings, thanks, unrelated topics) where no audio analysis is implied.
+            - CRITICAL: If files are loaded and the question asks for measured properties of the loaded audio — levels, frequencies, spectrum, quality, clipping, noise, events, or any measurement result — you MUST run tools. `no_analysis_needed` is NOT allowed in this case. The LLM must never answer acoustic measurement questions from prior knowledge alone.
+            - `no_analysis_needed` is valid only for purely conversational messages, Agent behavior/meta questions, and method/definition questions where no audio analysis is requested.
             - Respond with valid JSON only. No prose, no markdown, no explanation outside the JSON.
             """;
     }

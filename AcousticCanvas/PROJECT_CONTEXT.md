@@ -233,6 +233,8 @@ Agent file targeting: explicit `@fileName` mentions in chat narrow `selectedFile
 
 Agent behavior questions: meta-questions such as "why did you analyze both?" are answered directly without running DSP tools.
 
+Agent method questions: definitions or conceptual questions such as "what is a spectrogram?", "what does CPB mean?", or "how is roughness measured?" should be answered with `no_analysis_needed` unless the user explicitly asks to analyze loaded audio. Data questions such as "what does the spectrogram show for @file.wav?" should still run the relevant deterministic tool. No-tool answers must clear/remove any planning bubble and must not show malformed generic next steps.
+
 Agent spectrogram artifacts: multi-file `run_spectrogram` results create one workspace artifact per file, so each spectrogram evidence pill focuses the matching file-specific artifact instead of a combined card.
 
 Agent spectrogram answer contract: compact spectrogram evidence supports duration, displayed range, Nyquist/frequency coverage, FFT size, scale, frame count, and bin count. It does not expose per-frame energy coordinates, bright-line positions, dominant bands over time, complexity, harmonic richness, or transient timestamps to the final-answer model. Duration/frame count describe time coverage/resolution only; they must not be used to infer broader frequency range or richer/less complex content. For burst/transient questions, the planner should pair `run_spectrogram` with `run_event_detection(kind="transient")`; for explicitly spectrogram-only comparisons, it should not add FFT spectrum unless peaks/tonal balance are also requested.

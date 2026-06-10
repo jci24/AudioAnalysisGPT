@@ -36,6 +36,20 @@ public sealed class AgentSpectrogramToolTests
     }
 
     [Fact]
+    public void PlannerPromptTreatsSpectrogramDefinitionsAsNoAnalysisNeeded()
+    {
+        var prompt = AgentPromptBuilder.BuildPlannerSystemPrompt(
+            AgentToolRegistry.BuildToolListSummaryForPrompt(),
+            ["file-a"],
+            ["a.wav"]);
+
+        Assert.Contains("what is a spectrogram?", prompt, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("use no_analysis_needed", prompt, StringComparison.Ordinal);
+        Assert.Contains("what does the spectrogram show for @file.wav?", prompt, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("needs run_spectrogram", prompt, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void FinalAnswerPromptForbidsUnsupportedSpectrogramVisualClaims()
     {
         var prompt = AgentPromptBuilder.BuildFinalAnswerSystemPrompt();

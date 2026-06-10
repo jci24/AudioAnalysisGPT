@@ -8,6 +8,7 @@ import {
   assistantResponseStarted,
   planBubbleStarted,
   planBubbleReceived,
+  planBubbleRemoved,
 } from '../chatSlice';
 import type { ToolStep } from '../chatSlice';
 import type { AgentAskResponse } from '../services/agentAskService';
@@ -104,6 +105,8 @@ export function useAgentAsk() {
           plannerReason: agentResponse.plannerReason ?? null,
           timestamp: new Date().toISOString(),
         }));
+      } else {
+        dispatch(planBubbleRemoved({ id: planBubbleId }));
       }
 
       const artifactTokens: string[] = [];

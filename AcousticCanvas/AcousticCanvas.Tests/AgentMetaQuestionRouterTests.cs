@@ -24,4 +24,28 @@ public sealed class AgentMetaQuestionRouterTests
 
         Assert.Null(answer);
     }
+
+    [Theory]
+    [InlineData("What is a spectrogram?")]
+    [InlineData("Explain spectrogram")]
+    [InlineData("Define spectrogram")]
+    public void RoutesSpectrogramDefinitionQuestionToNoToolAnswer(string question)
+    {
+        var answer = AgentMetaQuestionRouter.TryAnswer(question);
+
+        Assert.NotNull(answer);
+        Assert.Contains("time-frequency", answer!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("time", answer!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("frequency", answer!, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("What does the spectrogram show for @file.wav?")]
+    [InlineData("Show me the spectrogram for this file")]
+    public void DoesNotRouteSpectrogramDataQuestion(string question)
+    {
+        var answer = AgentMetaQuestionRouter.TryAnswer(question);
+
+        Assert.Null(answer);
+    }
 }
