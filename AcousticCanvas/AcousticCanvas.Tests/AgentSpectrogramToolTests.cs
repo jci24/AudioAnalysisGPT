@@ -33,6 +33,8 @@ public sealed class AgentSpectrogramToolTests
         Assert.Contains("spectrogram-only comparison", prompt, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("run ONLY run_spectrogram", prompt, StringComparison.Ordinal);
         Assert.Contains("run_event_detection(kind=\"transient\")", prompt, StringComparison.Ordinal);
+        Assert.Contains("energy at a frequency is present \"throughout\"", prompt, StringComparison.Ordinal);
+        Assert.Contains("what causes this band in the spectrogram?", prompt, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -59,6 +61,8 @@ public sealed class AgentSpectrogramToolTests
         Assert.Contains("Duration and frame count describe time coverage/resolution only", prompt, StringComparison.Ordinal);
         Assert.Contains("Frequency range is determined by sample rate/Nyquist", prompt, StringComparison.Ordinal);
         Assert.Contains("use transient/event counts if available", prompt, StringComparison.Ordinal);
+        Assert.Contains("do not assume the band exists", prompt, StringComparison.Ordinal);
+        Assert.Contains("it cannot prove it persists throughout time", prompt, StringComparison.Ordinal);
         Assert.Contains("No psychoacoustic metrics were computed", prompt, StringComparison.Ordinal);
     }
 
