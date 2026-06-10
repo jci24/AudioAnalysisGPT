@@ -39,7 +39,7 @@ The AI should behave more like a junior acoustic engineer or investigation copil
 
 ---
 
-# 2. Current State of the Application (Last updated: 2026-06-09)
+# 2. Current State of the Application (Last updated: 2026-06-10)
 
 ## Stack
 
@@ -88,6 +88,7 @@ The UI supports two main workspaces:
 | Sound quality metrics (loudness, sharpness, roughness) | ✅ First slice done | `POST /api/analysis/sound-quality` |
 | Agent orchestration — `run_findings` tool | ✅ Done | Findings pipeline wired into `AgentToolRegistry` + `ToolExecutionService` |
 | Agent orchestration — `ToolResultsData` in response | ✅ Done | All 7 tool outputs forwarded to frontend as structured data |
+| Agent orchestration — evidence contract | ✅ Done | `AgentAskResult` returns `EvidenceReferences` + `EvidenceItems` so frontend citations can point to measured backend evidence |
 | Batch benchmarking | ❌ Not started | — |
 | Python sidecar | ✅ Active | `mosqito==1.2.1`, `PyOctaveBand==1.2.2` installed; executable path in `appsettings.Development.json` |
 
@@ -162,12 +163,13 @@ SignalChannel {
 | Spectrum panel | ✅ Done | FFT viz, tonal peak summary, channel selection, user params |
 | Spectrogram panel | ✅ Done | Time-frequency heatmap |
 | Comparison view | ✅ Done | Overlaid spectrum + metrics table + band deltas + **Psych Δ tab** (loudness/sharpness/roughness) |
-| Agent chat panel | ✅ Done | Messages, suggestion prompts, evidence tokens; markdown rendering via react-markdown; backend-agent responses use one in-place assistant bubble |
+| Agent chat panel | ✅ Done | Messages, suggestion prompts, compact evidence citation pills; markdown rendering via react-markdown; backend-agent responses use one in-place assistant bubble |
 | Agent artifacts panel | ✅ Done | 9 artifact types: analysis, compare, find, findings_result, tool_result, markers, selections, views, reports |
 | Agent tool execution loop | ✅ Done | Tool dispatch → API calls → artifact storage |
-| Agent orchestrator workspace artifacts | ✅ Done | All 7 orchestrator tools produce deterministic workspace cards; badges collapsed until clicked |
+| Agent orchestrator workspace artifacts | ✅ Done | All 7 orchestrator tools produce deterministic workspace cards; evidence pills focus the matching artifact and keep detail cards expanded |
 | Agent orchestrator markdown responses | ✅ Done | Assistant answers rendered as markdown |
 | Agent findings investigation | ✅ Done | "Detect findings and issues" suggestion chip → run_findings → FindingsCard with per-finding rows |
+| Agent referenced context panel | ✅ Done | Workspace shows loaded files, active file/selection, analyses used, limitations, and validation warnings |
 | File @mentions in chat | ✅ Done | Autocomplete dropdown |
 | Mode switcher (Manual ↔ Agent) | ✅ Done | Segmented control in header |
 | Resizable panels | ✅ Done | Drag handles, collapsible |
@@ -191,8 +193,8 @@ SignalChannel {
 | `analysis` | Level analysis result + status |
 | `spectrum` | Spectrum result + user parameters |
 | `spectrogram` | Spectrogram result + user parameters |
-| `chat` | messages[], isThinking |
-| `agentWorkspace` | artifacts[], focusedArtifactId |
+| `chat` | messages[], isThinking, selectedModel, evidenceReferences/evidenceItems/limitations on assistant messages |
+| `agentWorkspace` | artifacts[], focusedArtifactId, expandedArtifactIds |
 | `findings` | FindingsResult, status, error |
 
 ### Agent Tool System
@@ -224,7 +226,7 @@ The agent has two parallel execution paths:
 
 Routing: `questionRouter.ts` dispatches investigative keywords → orchestrator; workspace action keywords → old tool loop.
 
-All orchestrator tool outputs are forwarded to the frontend via `ToolResultsData` in `AgentAskResult`. The frontend (`useAgentAsk`) creates workspace artifacts for every completed tool and appends evidence badge tokens to the chat message. Cards start collapsed and expand only when the user clicks the badge.
+All orchestrator tool outputs are forwarded to the frontend via `ToolResultsData` in `AgentAskResult`. The backend also returns `EvidenceReferences` and `EvidenceItems`, so chat citations can reference backend evidence separately from workspace artifact IDs. The frontend (`useAgentAsk`) creates workspace artifacts for every completed tool, stores evidence metadata on assistant messages, and renders compact evidence pills in chat. Clicking an evidence pill focuses the matching workspace artifact by evidence type and file ID; detail cards remain expanded after the temporary focus highlight clears.
 
 Semantic analysis kinds available (old loop): loudness, peaks, dynamics, spectral_balance, noise, stereo_phase, distortion, dialogue_clarity.
 
@@ -770,10 +772,10 @@ All acceptance criteria met:
 
 - ✅ Agent chat panel with message history
 - ✅ Agent tool registry and execution loop
-- ✅ Agent artifacts panel (7 types)
+- ✅ Agent artifacts panel (9 artifact types)
 - ✅ Tool services (analyze, compare, find, workspace, report)
 - ✅ File @mentions in chat
-- ✅ Evidence tokens in responses
+- ✅ Compact evidence citations in responses
 - ✅ Backend `POST /api/analysis/run` produces LLM-ready summary
 - ✅ OpenAI API connected via backend proxy (`POST /api/agent/chat`)
 - ✅ Natural language explanation generation (gpt-4o-mini)
@@ -803,11 +805,12 @@ Must-have features:
 - ✅ `AgentOrchestrator`, `AgentPlanner`, `ToolExecutionService`, `EvidencePackageBuilder`, `AgentResponseValidator`
 - ✅ AgentToolRegistry whitelist (get_metadata, run_basic_metrics, run_spectrum, run_cpb, run_sound_quality_metrics, run_event_detection, run_findings)
 - ✅ Frontend: `useAgentAsk` hook, `agentAskSlice`, orchestrator workspace artifact dispatch
-- ✅ Evidence references, confidence, limitations, suggested next steps in response
+- ✅ Evidence references, evidence items, confidence, limitations, suggested next steps in response
 - ✅ `ToolResultsData` in `AgentAskResult` — all 7 tool outputs forwarded to frontend as structured data
 - ✅ `findings_result` artifact type — per-finding cards (severity, type, time range, confidence, title, description)
 - ✅ `tool_result` artifact type — labeled-metrics cards for all 6 non-findings tools
-- ✅ Evidence badge chips in chat → expand workspace card on click (collapsed by default)
+- ✅ Evidence citation pills in chat → focus matching workspace artifact by evidence type/file ID; detail cards stay expanded after click
+- ✅ Referenced context panel shows files, active selection, analyses used, limitations, and validation warnings
 - ✅ Markdown rendering in assistant chat bubbles
 - ✅ `run_findings` suggestion chip in agent chat
 - ✅ Routing fix: `findings`/`issues` keywords route to orchestrator
@@ -854,9 +857,10 @@ Given the current state, the recommended next work is:
 3. ~~Tonal peak detection~~ ✅ Done — Local prominence heuristic in spectrum analyzer + findings
 4. ~~CPB analysis~~ 🟡 Partial — Backend + manual CPB panel, comparison, Z/A/C weighting controls, experimental `python_filter_bank` sidecar path, and generated-WAV validation tests done; external calibrator validation pending
 5. ~~Sound quality metrics: loudness + sharpness + roughness~~ ✅ First slice done — MoSQITo sidecar, backend endpoint, manual panel, direct metric imports, and generated-WAV validation
-6. ~~Agent findings investigation flow~~ ✅ Done — `run_findings` wired into orchestrator; `findings_result` and `tool_result` workspace artifacts; evidence badges collapse until clicked; markdown rendering
+6. ~~Agent findings investigation flow~~ ✅ Done — `run_findings` wired into orchestrator; `findings_result` and `tool_result` workspace artifacts; compact evidence citation pills focus matching artifacts and keep detail cards expanded; markdown rendering
 7. ~~Python packages installed~~ ✅ Done — `mosqito==1.2.1`, `PyOctaveBand==1.2.2` installed in system Python 3.13; sidecar path configured
-8. **Next: Sound-quality comparison** — Add loudness/sharpness/roughness deltas to A/B comparison UI and agent artifacts
+8. ~~Sound-quality comparison~~ ✅ Done — Loudness/sharpness/roughness deltas are included in A/B comparison UI, pairwise diffs, and agent evidence
+9. **Next: Batch benchmarking** — Add multi-file ranking, clustering, outlier detection, and report-ready benchmark summaries
 
 ---
 
@@ -912,7 +916,7 @@ Acceptance criteria:
 - ✅ MoSQITo is used through a Python sidecar
 - ✅ Results include units and method metadata
 - ✅ Errors are handled clearly
-- ❌ Results can be compared between two files
+- ✅ Results can be compared between two files via comparison sound-quality deltas
 
 ## Story 7 — A/B Comparison ✅ DONE
 
@@ -927,7 +931,7 @@ Acceptance criteria:
 - ✅ Agent avoids unsupported claims (validated by `AgentResponseValidator`)
 - ✅ Agent suggests one useful next step
 - ✅ Agent states when evidence is insufficient (limitations field)
-- ✅ Agent answer can be saved as artifact (workspace cards for all 7 tools)
+- ✅ Agent answer creates inspectable workspace artifacts for all 7 orchestrator tools
 
 ## Story 9 — Findings Panel ✅ DONE
 
@@ -1098,8 +1102,8 @@ Build huge architecture for all future metrics before one full feature works.
 11. ~~Standards-oriented CPB filter-bank mode via Python sidecar scaffold~~ 🟡
 12. ~~Generated-WAV CPB sidecar validation tests~~ ✅
 13. ~~Sound-quality metrics: loudness + sharpness + roughness~~ ✅ First slice done
-14. **Sound-quality comparison** ← next
-15. Batch comparison
+14. ~~Sound-quality comparison~~ ✅
+15. **Batch comparison / benchmarking** ← next
 
 ---
 
@@ -1236,7 +1240,7 @@ Use the implemented MoSQITo loudness/sharpness/roughness sidecar
 → keep calibration caveats explicit until physical SPL calibration exists
 ```
 
-Findings, tonal peak detection, the first CPB graph slice, CPB comparison, CPB weighting controls, the experimental `python_filter_bank` sidecar path, generated-WAV CPB validation tests, the first MoSQITo loudness/sharpness/roughness slice, the full agent findings investigation flow (run_findings → findings_result + tool_result workspace artifacts, evidence badge chips, markdown rendering), and Python package installation are all now implemented. The next high-value task is sound-quality comparison, because it turns isolated perceived metrics into benchmark evidence.
+Findings, tonal peak detection, the first CPB graph slice, CPB comparison, CPB weighting controls, the experimental `python_filter_bank` sidecar path, generated-WAV CPB validation tests, the first MoSQITo loudness/sharpness/roughness slice, sound-quality comparison deltas, the full agent findings investigation flow (run_findings → findings_result + tool_result workspace artifacts, evidence citation pills, referenced context panel, markdown rendering), and Python package installation are all now implemented. The next high-value task is batch benchmarking, because it turns single-file and A/B workflows into product-family ranking, clustering, outlier detection, and report generation.
 
 ---
 
