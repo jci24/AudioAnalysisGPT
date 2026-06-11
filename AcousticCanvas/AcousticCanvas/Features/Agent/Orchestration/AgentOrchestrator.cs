@@ -359,7 +359,7 @@ public sealed class AgentOrchestrator(
             return answer;
         }
 
-        return $"{answer}\n\nEvidence: {string.Join(' ', tokenStrings)}";
+        return answer;
     }
 
     private static string MapBackendTypeToFrontendType(string backendType)
