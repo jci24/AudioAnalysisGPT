@@ -19,13 +19,14 @@ import {
   SPECTROGRAM_RANGE_OPTIONS,
   SPECTROGRAM_SCALE_OPTIONS,
 } from './spectrogramTypes';
-import type { ChannelSpectrogramAnalysis, SpectrogramScale } from './spectrogramTypes';
+import type { ChannelSpectrogramAnalysis, SpectrogramAxisTick, SpectrogramScale } from './spectrogramTypes';
 import styles from './SpectrogramPanel.module.scss';
 
 const DEFAULT_CANVAS_HEIGHT = 200;
 const MIN_CANVAS_HEIGHT = 140;
 const MAX_CANVAS_HEIGHT = 420;
 const AXIS_WIDTH = 52;
+const TIME_AXIS_HEIGHT = 24;
 const FONT = "10px 'JetBrains Mono', ui-monospace, monospace";
 const LABEL_COLOR = 'rgba(0,0,0,0.45)';
 
@@ -110,12 +111,11 @@ function decodeBase64Frame(encodedFrame: string): Uint8Array {
   return decodedFrame;
 }
 
-// Draws frequency axis labels on a separate canvas.
+// Draws backend-provided frequency axis tick labels on a separate canvas.
 function drawFrequencyAxis(
   axisCanvas: HTMLCanvasElement,
-  nyquistHz: number,
+  ticks: SpectrogramAxisTick[],
   height: number,
-  scale: SpectrogramScale,
 ): void {
   const dpr = window.devicePixelRatio || 1;
   axisCanvas.width = AXIS_WIDTH * dpr;
@@ -133,17 +133,19 @@ function drawFrequencyAxis(
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
 
-  const numTicks = 5;
-  for (let i = 0; i <= numTicks; i++) {
-    const fraction = i / numTicks;
-    const freqHz = scaleToFrequency(fraction * frequencyToScale(nyquistHz, scale), scale);
-    const y = height - fraction * height;
+  const TICK_LENGTH = 4;
+  ctx.strokeStyle = LABEL_COLOR;
+  ctx.lineWidth = 1;
 
-    const labelText = freqHz >= 1000
-      ? `${(freqHz / 1000).toFixed(1)} kHz`
-      : `${Math.round(freqHz)} Hz`;
-
-    ctx.fillText(labelText, AXIS_WIDTH - 4, Math.max(6, Math.min(y, height - 6)));
+  for (const tick of ticks) {
+    const y = tick.positionPercent / 100 * height;
+    const clampedY = Math.max(6, Math.min(y, height - 6));
+    // Tick line flush against the right edge of the axis canvas.
+    ctx.beginPath();
+    ctx.moveTo(AXIS_WIDTH, clampedY);
+    ctx.lineTo(AXIS_WIDTH - TICK_LENGTH, clampedY);
+    ctx.stroke();
+    ctx.fillText(tick.label, AXIS_WIDTH - TICK_LENGTH - 2, clampedY);
   }
 }
 
@@ -245,8 +247,7 @@ export const SpectrogramPanel = ({
 
     drawSpectrogramToCanvas(canvas, channelData.frequencyData);
 
-    const nyquistHz = spectrogramResult.parameters.sampleRate / 2;
-    drawFrequencyAxis(axisCanvas, nyquistHz, canvasHeight, spectrogramResult.parameters.scale);
+    drawFrequencyAxis(axisCanvas, spectrogramResult.frequencyAxisTicks ?? [], canvasHeight);
   }, [canvasHeight, spectrogramResult]);
 
   const fileSelectOptions = availableFiles.map((f) => ({ value: f.id, label: f.name }));
@@ -271,6 +272,7 @@ export const SpectrogramPanel = ({
     ? (linkedTimeSeconds - renderedRegion.startSeconds) / renderedRegion.durationSeconds * 100
     : -1;
   const showLinkedTime = !hover && linkedTimePercent >= 0 && linkedTimePercent <= 100;
+  const timeAxisTicks = spectrogramResult?.timeAxisTicks ?? [];
 
   const getSpectrogramPosition = (event: React.MouseEvent<HTMLDivElement>): SpectrogramHover | null => {
     if (!renderedRegion || !renderedScale || renderedRegion.durationSeconds <= 0 || renderedNyquistHz <= 0) {
@@ -407,65 +409,83 @@ export const SpectrogramPanel = ({
           </div>
         )}
         {effectiveFileId && spectrogramStatus !== 'error' && (
-          <div style={{ display: 'flex', flexDirection: 'row', width: '100%', height: canvasHeight }}>
-            <canvas
-              ref={axisCanvasRef}
-              style={{ flexShrink: 0, display: 'block' }}
-            />
-            <div
-              className={styles.spectrogramViewport}
-              style={{ height: canvasHeight }}
-              onClick={handleSpectrogramClick}
-              onMouseMove={handleSpectrogramMouseMove}
-              onMouseLeave={() => { setHover(null); dispatch(cursorFrequencyCleared()); dispatch(cursorTimeCleared()); }}
-            >
+          <div className={styles.spectrogramFrame} style={{ height: canvasHeight + TIME_AXIS_HEIGHT }}>
+            <div className={styles.spectrogramPlotRow} style={{ height: canvasHeight }}>
               <canvas
-                key={canvasKey}
-                ref={canvasRef}
-                className={styles.spectrogramCanvas}
-                style={{ height: canvasHeight }}
+                ref={axisCanvasRef}
+                style={{ flexShrink: 0, display: 'block' }}
+                aria-label="Spectrogram frequency axis"
               />
-              {showPlayhead && (
-                <div className={styles.playhead} style={{ left: `${playheadPercent}%` }} />
-              )}
-              {showLinkedTime && (
-                <div className={styles.linkedTimeLine} style={{ left: `${linkedTimePercent}%` }} />
-              )}
-              {showLinkedFrequency && (
-                <>
-                  <div className={styles.linkedFrequencyLine} style={{ top: `${linkedFrequencyPercent}%` }} />
-                  <div className={styles.linkedReadout} style={{ top: `${linkedFrequencyPercent}%` }}>
-                    {linkedFrequencyHz! >= 1000
-                      ? `${(linkedFrequencyHz! / 1000).toFixed(2)} kHz`
-                      : `${Math.round(linkedFrequencyHz!)} Hz`}
+              <div
+                className={styles.spectrogramViewport}
+                style={{ height: canvasHeight }}
+                onClick={handleSpectrogramClick}
+                onMouseMove={handleSpectrogramMouseMove}
+                onMouseLeave={() => { setHover(null); dispatch(cursorFrequencyCleared()); dispatch(cursorTimeCleared()); }}
+              >
+                <canvas
+                  key={canvasKey}
+                  ref={canvasRef}
+                  className={styles.spectrogramCanvas}
+                  style={{ height: canvasHeight }}
+                />
+                {showPlayhead && (
+                  <div className={styles.playhead} style={{ left: `${playheadPercent}%` }} />
+                )}
+                {showLinkedTime && (
+                  <div className={styles.linkedTimeLine} style={{ left: `${linkedTimePercent}%` }} />
+                )}
+                {showLinkedFrequency && (
+                  <>
+                    <div className={styles.linkedFrequencyLine} style={{ top: `${linkedFrequencyPercent}%` }} />
+                    <div className={styles.linkedReadout} style={{ top: `${linkedFrequencyPercent}%` }}>
+                      {linkedFrequencyHz! >= 1000
+                        ? `${(linkedFrequencyHz! / 1000).toFixed(2)} kHz`
+                        : `${Math.round(linkedFrequencyHz!)} Hz`}
+                    </div>
+                  </>
+                )}
+                {hover && (
+                  <>
+                    <div className={styles.hoverTimeLine} style={{ left: `${hover.xPercent}%` }} />
+                    <div className={styles.hoverFrequencyLine} style={{ top: `${hover.yPercent}%` }} />
+                    <div
+                      className={styles.hoverReadout}
+                      style={{
+                        left: `${Math.min(hover.xPercent + 1, 78)}%`,
+                        top: `${Math.min(hover.yPercent + 3, 78)}%`,
+                      }}
+                    >
+                      {hover.timeSeconds.toFixed(3)} s
+                      <br />
+                      {hover.frequencyHz >= 1000
+                        ? `${(hover.frequencyHz / 1000).toFixed(2)} kHz`
+                        : `${Math.round(hover.frequencyHz)} Hz`}
+                    </div>
+                  </>
+                )}
+                {isRunning && (
+                  <div className={styles.loadingOverlay}>
+                    <Loader size="sm" color="orange" />
+                    <span>Updating spectrogram</span>
                   </div>
-                </>
-              )}
-              {hover && (
-                <>
-                  <div className={styles.hoverTimeLine} style={{ left: `${hover.xPercent}%` }} />
-                  <div className={styles.hoverFrequencyLine} style={{ top: `${hover.yPercent}%` }} />
-                  <div
-                    className={styles.hoverReadout}
-                    style={{
-                      left: `${Math.min(hover.xPercent + 1, 78)}%`,
-                      top: `${Math.min(hover.yPercent + 3, 78)}%`,
-                    }}
+                )}
+              </div>
+            </div>
+            <div className={styles.timeAxisRow} aria-label="Spectrogram time axis">
+              <div className={styles.timeAxisSpacer} />
+              <div className={styles.timeAxisTrack}>
+                {timeAxisTicks.map((tick) => (
+                  <span
+                    key={`${tick.positionPercent}-${tick.label}`}
+                    className={styles.timeAxisTickLabel}
+                    style={{ left: `${tick.positionPercent}%` }}
                   >
-                    {hover.timeSeconds.toFixed(3)} s
-                    <br />
-                    {hover.frequencyHz >= 1000
-                      ? `${(hover.frequencyHz / 1000).toFixed(2)} kHz`
-                      : `${Math.round(hover.frequencyHz)} Hz`}
-                  </div>
-                </>
-              )}
-              {isRunning && (
-                <div className={styles.loadingOverlay}>
-                  <Loader size="sm" color="orange" />
-                  <span>Updating spectrogram</span>
-                </div>
-              )}
+                    {tick.label}
+                  </span>
+                ))}
+                <span className={styles.timeAxisTitle}>Time (s)</span>
+              </div>
             </div>
           </div>
         )}

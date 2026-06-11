@@ -48,16 +48,11 @@ export function useAgentAsk() {
 
   function buildChatContent(
     agentResponse: AgentAskResponse,
-    artifactTokens: string[],
   ): string {
     let content = agentResponse.answer;
 
     if (agentResponse.suggestedNextSteps.length > 0) {
       content += `\n\nNext steps: ${agentResponse.suggestedNextSteps.join(' ')}`;
-    }
-
-    if (artifactTokens.length > 0) {
-      content += `\n\n${artifactTokens.join(' ')}`;
     }
 
     return content;
@@ -151,7 +146,7 @@ export function useAgentAsk() {
 
       dispatch(assistantMessageReceived({
         id: assistantMessageId,
-        content: buildChatContent(agentResponse, artifactTokens),
+        content: buildChatContent(agentResponse),
         timestamp: new Date().toISOString(),
         toolSteps: agentResponse.toolExecutions.map((e): ToolStep => ({
           toolName: e.toolName,

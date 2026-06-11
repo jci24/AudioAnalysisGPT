@@ -1,3 +1,8 @@
+export type SpectrogramAxisTick = {
+  positionPercent: number;
+  label: string;
+};
+
 export type SpectrogramParameters = {
   fftSize: number;
   windowType: string;
@@ -30,6 +35,8 @@ export type SpectrogramAnalysis = {
     durationSeconds: number;
   };
   channels: ChannelSpectrogramAnalysis[];
+  timeAxisTicks: SpectrogramAxisTick[];
+  frequencyAxisTicks: SpectrogramAxisTick[];
 };
 
 export type SpectrogramUserParameters = {

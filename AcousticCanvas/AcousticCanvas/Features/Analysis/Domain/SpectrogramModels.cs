@@ -1,10 +1,18 @@
 namespace AcousticCanvas.Features.Analysis.Domain;
 
+public sealed class SpectrogramAxisTick
+{
+    public required double PositionPercent { get; init; }
+    public required string Label { get; init; }
+}
+
 public sealed class SpectrogramAnalysis
 {
     public required SpectrogramParameters Parameters { get; init; }
     public required TimeRange Region { get; init; }
     public required IReadOnlyList<ChannelSpectrogramAnalysis> Channels { get; init; }
+    public required IReadOnlyList<SpectrogramAxisTick> TimeAxisTicks { get; init; }
+    public required IReadOnlyList<SpectrogramAxisTick> FrequencyAxisTicks { get; init; }
 }
 
 public sealed class ChannelSpectrogramAnalysis

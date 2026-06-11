@@ -1,5 +1,6 @@
 using MathNet.Numerics.IntegralTransforms;
 using AcousticCanvas.Features.Analysis.Domain;
+using System.Globalization;
 using System.Numerics;
 
 namespace AcousticCanvas.Features.Analysis.Analyzers;
@@ -98,11 +99,16 @@ public static class SpectrogramAnalyzer
             DurationSeconds = clampedEndSeconds - clampedStartSeconds,
         };
 
+        var timeAxisTicks = BuildTimeAxisTicks(clampedStartSeconds, clampedEndSeconds, 6);
+        var frequencyAxisTicks = BuildFrequencyAxisTicks(sampleRate / 2.0, scale, 6);
+
         return new SpectrogramAnalysis
         {
             Parameters = parameters,
             Region = region,
             Channels = channelResults,
+            TimeAxisTicks = timeAxisTicks,
+            FrequencyAxisTicks = frequencyAxisTicks,
         };
     }
 
@@ -229,6 +235,50 @@ public static class SpectrogramAnalyzer
         }
 
         return amplitudes;
+    }
+
+    public static IReadOnlyList<SpectrogramAxisTick> BuildTimeAxisTicks(double startSeconds, double endSeconds, int tickCount)
+    {
+        var duration = endSeconds - startSeconds;
+        if (duration <= 0.0 || tickCount <= 1)
+            return [new SpectrogramAxisTick { PositionPercent = 0.0, Label = startSeconds.ToString("F1", CultureInfo.InvariantCulture) + "s" }];
+
+        var ticks = new SpectrogramAxisTick[tickCount];
+        for (var i = 0; i < tickCount; i++)
+        {
+            var fraction = (double)i / (tickCount - 1);
+            var timeSeconds = startSeconds + fraction * duration;
+            ticks[i] = new SpectrogramAxisTick
+            {
+                PositionPercent = Math.Clamp(fraction * 100.0, 0.0, 100.0),
+                Label = timeSeconds.ToString("F1", CultureInfo.InvariantCulture) + "s",
+            };
+        }
+        return ticks;
+    }
+
+    public static IReadOnlyList<SpectrogramAxisTick> BuildFrequencyAxisTicks(double nyquistHz, string scale, int tickCount)
+    {
+        var normalizedScale = NormalizeScale(scale);
+        var scaledNyquist = FrequencyToScale(Math.Max(0.0, nyquistHz), normalizedScale);
+        if (scaledNyquist <= 0.0 || tickCount <= 1)
+            return [new SpectrogramAxisTick { PositionPercent = 100.0, Label = "0 Hz" }];
+
+        var ticks = new SpectrogramAxisTick[tickCount];
+        for (var i = 0; i < tickCount; i++)
+        {
+            var fraction = (double)i / (tickCount - 1);
+            var frequencyHz = ScaleToFrequency(fraction * scaledNyquist, normalizedScale);
+            var label = frequencyHz >= 1000.0
+                ? (frequencyHz / 1000.0).ToString("F1", CultureInfo.InvariantCulture) + " kHz"
+                : Math.Round(frequencyHz).ToString(CultureInfo.InvariantCulture) + " Hz";
+            ticks[i] = new SpectrogramAxisTick
+            {
+                PositionPercent = Math.Clamp((1.0 - fraction) * 100.0, 0.0, 100.0),
+                Label = label,
+            };
+        }
+        return ticks;
     }
 
     private static double[] BuildHannWindow(int size)
