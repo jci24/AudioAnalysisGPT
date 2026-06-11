@@ -7,6 +7,7 @@ import chatReducer, {
   chatIsThinkingSelector,
   planBubbleStarted,
   planBubbleReceived,
+  planBubbleRemoved,
   userMessageSent,
 } from './chatSlice';
 
@@ -188,6 +189,27 @@ describe('chatSlice', () => {
     expect(state.messages[0]).toMatchObject({
       role: 'plan',
       plannerReason: null,
+    });
+  });
+
+  it('planBubbleRemoved removes a no-tool planning bubble without removing the assistant response', () => {
+    const withAssistant = chatReducer(undefined, assistantResponseStarted({
+      id: 'assistant-1',
+      timestamp: '2026-06-08T00:00:01.000Z',
+    }));
+
+    const withPlanStarted = chatReducer(withAssistant, planBubbleStarted({
+      id: 'plan-1',
+      assistantMessageId: 'assistant-1',
+      timestamp: '2026-06-08T00:00:01.000Z',
+    }));
+
+    const withoutPlan = chatReducer(withPlanStarted, planBubbleRemoved({ id: 'plan-1' }));
+
+    expect(withoutPlan.messages).toHaveLength(1);
+    expect(withoutPlan.messages[0]).toMatchObject({
+      id: 'assistant-1',
+      role: 'assistant',
     });
   });
 });

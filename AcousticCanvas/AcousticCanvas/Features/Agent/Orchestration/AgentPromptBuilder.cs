@@ -55,15 +55,23 @@ public static class AgentPromptBuilder
             - Do not request tools not in the available tools list.
             - Do not invent file IDs — use only the IDs listed above.
             - ALL files listed above are already loaded and available. NEVER ask which files to use — use all of them when a multi-file question is asked.
-            - For compare/difference/versus/A-B/"why does X sound different"/"which is louder"/"which is sharper" questions: run the FULL suite on ALL loaded files — get_metadata + run_basic_metrics + run_spectrum + run_cpb + run_sound_quality_metrics + run_event_detection(kind="clipping"). The explanation agent needs level, spectral, and psychoacoustic evidence to produce a coherent comparison narrative.
+            - If the user asks about your previous behavior, tool choice, why you analyzed multiple files, or why a previous answer did something, use no_analysis_needed. Do not run audio tools for Agent behavior/meta questions.
+            - If the user asks for a definition, method explanation, or conceptual explanation such as "what is a spectrogram?", "what does CPB mean?", "how is roughness measured?", or "explain FFT", use no_analysis_needed. Do not run audio tools for method/definition questions unless the user also asks to analyze the loaded audio.
+            - Distinguish method questions from data questions: "what is a spectrogram?" needs no tools; "what does the spectrogram show for @file.wav?" needs run_spectrogram.
+            - For broad compare/difference/versus/A-B/"why does X sound different"/"which is louder"/"which is sharper" questions: run the FULL suite on ALL loaded files — get_metadata + run_basic_metrics + run_spectrum + run_cpb + run_sound_quality_metrics + run_event_detection(kind="clipping"). The explanation agent needs level, spectral, and psychoacoustic evidence to produce a coherent comparison narrative.
+            - For explicitly spectrogram-only comparison questions ("compare the spectrograms", "compare time-frequency", "compare frequency over time"): run ONLY run_spectrogram on each file. Do not add run_spectrum unless the user also asks for peaks, FFT spectrum, tonal balance, or exact frequency peaks.
             - For clipping questions: run_basic_metrics + run_event_detection(kind="clipping") on each file.
             - For loudness, sharpness, roughness, harshness, perceived quality, annoying sound, or psychoacoustic questions: run_sound_quality_metrics on each file.
             - For harshness or spectral questions: run_spectrum + run_cpb + run_sound_quality_metrics on each file.
+            - For spectrogram, time-frequency, frequency over time, or "show where it happens" questions: run_spectrogram on each file. Add run_spectrum only when the user also asks for frequency peaks, FFT spectrum, tonal balance, or exact dominant frequencies.
+            - For questions about whether energy at a frequency is present "throughout", "over time", or "across the file": run_spectrogram. Add run_spectrum only if the user also asks whether that frequency exists in the overall spectrum. Current compact spectrogram evidence cannot prove continuous energy at a specific time-frequency coordinate.
+            - For "what causes this band in the spectrogram?" or similar cause questions: run_spectrogram plus run_spectrum. The final answer must treat cause as unknown unless evidence includes a matching tonal peak, reference context, or external source data.
+            - For short burst, transient, onset, impact, click, or sudden-event-over-time questions: run_spectrogram on each file AND run_event_detection(kind="transient") for each file. Spectrogram summaries alone do not prove transient timing.
             - For general/open-ended questions ("analyse", "what is this", "tell me about"): run the FULL suite on ALL files — get_metadata + run_basic_metrics + run_spectrum + run_cpb + run_sound_quality_metrics + run_event_detection(kind="clipping"). This gives the explanation agent enough evidence to surface unexpected findings proactively.
             - For specific targeted questions (e.g. "what is the peak frequency"): use the minimum tools needed.
             - Only use ask_clarification if the question is genuinely ambiguous and cannot be resolved from the file list.
-            - CRITICAL: If files are loaded and the question relates to audio, sound, signal, levels, frequencies, spectrum, quality, clipping, noise, or any measurement property — you MUST run tools. `no_analysis_needed` is NOT allowed in this case. The LLM must never answer acoustic questions from prior knowledge alone.
-            - `no_analysis_needed` is only valid for purely conversational messages (greetings, thanks, unrelated topics) where no audio analysis is implied.
+            - CRITICAL: If files are loaded and the question asks for measured properties of the loaded audio — levels, frequencies, spectrum, quality, clipping, noise, events, or any measurement result — you MUST run tools. `no_analysis_needed` is NOT allowed in this case. The LLM must never answer acoustic measurement questions from prior knowledge alone.
+            - `no_analysis_needed` is valid only for purely conversational messages, Agent behavior/meta questions, and method/definition questions where no audio analysis is requested.
             - Respond with valid JSON only. No prose, no markdown, no explanation outside the JSON.
             """;
     }
@@ -104,6 +112,7 @@ public static class AgentPromptBuilder
             - Leave limitations as [] if the analysis ran successfully and results are clear.
             - Only add a limitation if it directly affects interpretation of THIS result.
             - Never include: "Only digital clipping was assessed", "No psychoacoustic metrics computed", or any other generic always-true statement.
+            - Never write "No psychoacoustic metrics were computed" or similar text in the answer prose unless the user explicitly asked for psychoacoustic or sound-quality metrics and those metrics failed.
 
             Next steps rules:
             - Suggest a next step ONLY if the evidence reveals something that warrants further investigation.
@@ -119,6 +128,16 @@ public static class AgentPromptBuilder
 
             Evidence interpretation rules — CRITICAL:
             - When answering about spectral character (tinny, muddy, harsh, boomy, bright, dull, boxy, sibilant), reference the BAND ENERGIES and their relative balance — not peakFrequencyHz. peakFrequencyHz is just the single loudest FFT bin and does NOT characterize tonal quality.
+            - Use spectrogram evidence only for metadata-level time-frequency structure: duration, displayed time range, frequency range/Nyquist, FFT size, scale, frame count, bin count, and the fact that time-localized inspection was performed.
+            - Current spectrogram evidence does NOT contain per-frame energy values, bright-line coordinates, dominant bands over time, or detected transient timestamps. Do NOT claim visible bursts, changing bands, stable/evolving patterns, richer harmonic structure, or exact event times from spectrogram evidence alone.
+            - If the user asks whether frequency content changes over time and only spectrogram summary evidence is available, say the spectrogram artifact is available for visual inspection, but the compact evidence only confirms coverage/parameters, not detailed evolution.
+            - If transient event evidence exists, use that event_detection evidence for burst/onset timing; use spectrogram evidence only as supporting context.
+            - Duration and frame count describe time coverage/resolution only. They do NOT imply broader frequency range, richer harmonic structure, greater complexity, or less complexity.
+            - Frequency range is determined by sample rate/Nyquist and spectrogram scale/binning, not by file duration. Never say a longer file has a broader frequency range unless the evidence shows a higher Nyquist/frequency limit.
+            - For stability/evolution questions, use transient/event counts if available. If only spectrogram summary evidence is available, state that the artifact can be visually inspected but the compact evidence cannot prove stability or evolution.
+            - For questions about a band visible in the spectrogram, do not assume the band exists or infer its cause from compact spectrogram metadata. If spectrum evidence shows a matching peak, say there is a matching spectral peak and call the cause unknown without RPM/order/reference context.
+            - For questions about energy near a frequency throughout a file, do not answer from overall FFT spectrum alone. Spectrum can indicate whether energy exists at that frequency overall; it cannot prove it persists throughout time.
+            - Do NOT treat byte-normalized spectrogram visualization data as calibrated acoustic level evidence.
             - Tinny = excess presence/high band energy (2.5–8 kHz) with deficit in low/low_mid bands. Muddy = excess low_mid (250–800 Hz). Harsh = elevated presence (2.5–5 kHz) + high sharpness (acum) + high roughness (asper). Boomy = excess sub/low (20–250 Hz).
             - For harshness comparisons: use sharpness (acum) and roughness (asper) as primary indicators, supported by presence/high band energy. Do NOT cite peakFrequencyHz as a harshness proxy.
             - If a metric was NOT measured (e.g. LUFS, integrated loudness, true-peak), say explicitly that it was not measured and cannot be answered from available data. NEVER approximate or convert between different measurement scales (e.g. sone is NOT convertible to LUFS or dB gain adjustments).

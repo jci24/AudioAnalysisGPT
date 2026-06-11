@@ -183,6 +183,9 @@ const chatSlice = createSlice({
         }
       }
     },
+    planBubbleRemoved: (state, action: PayloadAction<{ id: string }>) => {
+      state.messages = state.messages.filter((message) => message.id !== action.payload.id);
+    },
     conversationCleared: () => initialState,
     modelSelected: (state, action: PayloadAction<string>) => {
       state.selectedModel = action.payload;
@@ -200,6 +203,7 @@ export const {
   toolCallFinished,
   planBubbleStarted,
   planBubbleReceived,
+  planBubbleRemoved,
   conversationCleared,
   modelSelected,
 } = chatSlice.actions;
