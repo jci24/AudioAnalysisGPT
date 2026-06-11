@@ -1,4 +1,4 @@
-# AcousticGPT — Product, Architecture, Roadmap & Scrum Reference Prompt
+﻿# AcousticGPT — Product, Architecture, Roadmap & Scrum Reference Prompt
 
 You are my senior product manager, innovation strategist, software architect, acoustic engineering advisor, and scrum master.
 
@@ -846,9 +846,696 @@ Long-term features:
 - User feedback on AI findings
 - Knowledge base / RAG for standards and previous cases
 
+The future autonomous agent architecture that powers Milestone 5 is specified in detail in
+[Section 11 — Future Agent Architecture](#11-future-agent-architecture--controlled-autonomy-roadmap).
+
+Key concepts required for Milestone 5 (all **Future / Not Started**):
+
+| Concept | Status |
+|---------|--------|
+| Explicit agent intent classification | Future |
+| Explicit evidence planning (evidenceNeeded field) | Future |
+| Tool metadata + safety levels | Future |
+| `AgentPlanValidator` / `ToolPolicyValidator` | Future |
+| Proposed workspace actions separate from analysis tools | Future |
+| Structured hypothesis ranking | Future |
+| First-class investigation trace / timeline | Future |
+| Autonomy modes (ExplainOnly → ProactiveInvestigation) | Future |
+| External knowledge policy | Future |
+| Bounded multi-step observation loop | Future |
+
 ---
 
-# 11. Suggested Next Priorities (after current state)
+# 11. Future Agent Architecture — Controlled Autonomy Roadmap
+
+> **Status of this section:** Architecture direction only. None of the concepts below are implemented yet unless explicitly marked as Current. Do not implement production code from this section without explicit instruction.
+
+---
+
+## 11.1 Current Architecture Summary
+
+**Status: Current**
+
+The existing agent orchestrator at `POST /api/agent/ask` is already a good controlled agentic workflow. It can be described as:
+
+> **A controlled, evidence-grounded agentic workflow with deterministic shortcuts.**
+
+Current flow:
+
+```
+Frontend question + selected file IDs
+  → POST /api/agent/ask
+  → backend validates request
+  → DeterministicFactRouter handles simple factual questions without any LLM call
+  → otherwise AgentPlanner calls OpenAI to decide which tools to run
+  → planner returns strict JSON action (run_tools | ask_clarification | no_analysis_needed)
+  → AgentToolRegistry filters requested tools against a hardcoded whitelist
+  → ToolExecutionService runs deterministic backend DSP tools (never the LLM)
+  → EvidencePackageBuilder compresses raw tool outputs into structured evidence items
+  → second LLM call: AgentPlanner.GenerateFinalAnswerAsync produces grounded explanation
+  → AgentResponseValidator checks evidence-reference consistency
+  → backend returns answer + evidence refs + tool outputs + confidence + limitations
+  → frontend renders deterministic workspace artifacts from tool outputs
+```
+
+What is already good about this system:
+
+- Avoids unnecessary LLM calls for simple measured facts (`DeterministicFactRouter`)
+- The LLM does not compute DSP values — the backend does
+- Backend tools produce the numeric truth
+- All tools are whitelisted via `AgentToolRegistry`
+- Evidence is packaged before the explanation call (`EvidencePackageBuilder`)
+- Final answer is validated against evidence (`AgentResponseValidator`)
+- Frontend renders deterministic artifacts — it never fabricates metrics
+
+What it is **not yet**:
+
+- It is not a fully schema-driven autonomous acoustic investigation agent
+- The planner uses prompt instructions and keyword rules, not a first-class intent model
+- There is no explicit evidence-planning step separate from tool selection
+- Tools have no safety levels or autonomy mode metadata
+- Proposed workspace actions are not separated from analysis tools
+- There is no structured hypothesis ranking
+- There is no persistent investigation trace
+- There is no multi-step observation loop
+
+---
+
+## 11.2 Future Direction
+
+**Status: Future**
+
+The next architectural evolution should move from:
+
+```
+question wording / prompt rules → tools → evidence → final answer
+```
+
+toward:
+
+```
+intent → evidence needed → tools → policy → execution → hypotheses → trace
+```
+
+The agent should **not** become an endless list of hardcoded rules:
+
+```
+if user says "harsh" → run X
+if user says "whine" → run Y
+if user says "clipping" → run Z
+```
+
+Instead, it should compose a smaller set of reusable concepts:
+
+```
+intent classification
+  + evidence requirements
+  + approved tool capabilities
+  + safety policies
+  + hypothesis ranking
+  + investigation trace
+```
+
+This is what will make the agent feel like a real acoustic investigation copilot, not just a smart router.
+
+---
+
+## 11.3 Concept 1 — Explicit Agent Intent
+
+**Status: Future**
+
+The future planner should output a first-class `intent` field in the planning response.
+
+**Intent vocabulary:**
+
+| Intent | Meaning |
+|--------|---------|
+| `general_diagnosis` | Open-ended "tell me about this file" investigation |
+| `compare_files` | A vs B or multi-file comparison |
+| `explain_perception` | Why does this sound harsh/annoying/tinny/etc. |
+| `detect_specific_issue` | Is there clipping / silence / a tonal peak? |
+| `rank_candidates` | Which product is best? Rank all loaded files. |
+| `suggest_modification` | How could this be improved? |
+| `generate_report` | Produce a structured engineering report |
+| `ask_method_question` | How is X calculated? (no analysis needed) |
+| `search_external_context` | Look up a standard / datasheet / benchmark |
+
+**Mapping examples:**
+
+```
+"Why does this sound annoying?"     → explain_perception
+"Is there clipping?"                → detect_specific_issue
+"Why is Product B worse than A?"    → compare_files
+"Which product is best?"            → rank_candidates
+"Can you reduce the whine?"         → suggest_modification
+"Generate a report"                 → generate_report
+```
+
+**Future planner JSON:**
+
+```json
+{
+  "action": "run_tools",
+  "intent": "explain_perception",
+  "confidence": 0.86,
+  "tools": []
+}
+```
+
+**Why this matters:** Intent lets the backend understand *why* the user is asking, not only *which tool the LLM selected*. It enables downstream components (hypothesis ranker, report builder, policy validator) to apply intent-appropriate logic without hard-coded keyword rules.
+
+---
+
+## 11.4 Concept 2 — Explicit Evidence Planning
+
+**Status: Future**
+
+The future planner should **not** jump directly from question wording to tool names.
+
+It should first identify what *evidence types* are needed, then derive which tools will produce them. This separates the "what do we need to know?" question from the "which function computes it?" question.
+
+**Evidence type vocabulary:**
+
+```
+metadata
+basic_metrics
+spectrum
+spectrogram
+cpb
+sound_quality_metrics
+event_detection
+findings
+reference_comparison
+similarity
+external_context
+```
+
+**Example:**
+
+```
+Question: "Why does this sound harsh?"
+→ Intent: explain_perception
+→ Evidence needed: sharpness, roughness, cpb, spectrum, findings
+→ Tools: run_sound_quality_metrics, run_cpb, run_spectrum, run_findings
+```
+
+**Future planner JSON with evidence planning:**
+
+```json
+{
+  "action": "run_tools",
+  "intent": "explain_perception",
+  "confidence": 0.86,
+  "evidenceNeeded": [
+    "basic_metrics",
+    "spectrum",
+    "cpb",
+    "sound_quality_metrics",
+    "findings"
+  ],
+  "tools": [
+    {
+      "name": "run_basic_metrics",
+      "arguments": {},
+      "reason": "Needed to inspect level and dynamics."
+    },
+    {
+      "name": "run_spectrum",
+      "arguments": {},
+      "reason": "Needed to detect tonal peaks and spectral balance."
+    },
+    {
+      "name": "run_cpb",
+      "arguments": {},
+      "reason": "Needed to inspect frequency-band energy distribution."
+    },
+    {
+      "name": "run_sound_quality_metrics",
+      "arguments": {},
+      "reason": "Needed to estimate loudness, sharpness, and roughness."
+    },
+    {
+      "name": "run_findings",
+      "arguments": {},
+      "reason": "Needed to collect structured issues such as clipping or tonal peaks."
+    }
+  ],
+  "proposedActions": [],
+  "requiresUserConfirmation": false
+}
+```
+
+**Note:** The `reason` field per tool makes the planner's intent legible to the backend validator and to the user ("How I analyzed this" panel), without relying on keyword matching in prompt rules.
+
+---
+
+## 11.5 Concept 3 — Tool Metadata and Tool Policy
+
+**Status: Future (current `AgentToolRegistry` only implements the whitelist check)**
+
+The existing whitelist answers one question:
+
+```
+Is this tool allowed?
+```
+
+In the future, each tool entry in `AgentToolRegistry` should carry richer metadata so the policy engine can answer:
+
+```
+What evidence does this tool produce?
+Is this tool safe to run automatically?
+Does it require user confirmation before running?
+Is it read-only, preview-only, destructive, or external?
+Which autonomy modes allow this tool?
+```
+
+**Proposed future tool metadata fields:**
+
+```
+name
+description
+inputSchema
+outputSchema
+evidenceProduced          ← list of evidence types this tool emits
+safetyLevel               ← see safety levels below
+requiresConfirmation      ← boolean
+allowedAutonomyModes      ← list of autonomy modes (see Concept 8)
+limitations               ← known accuracy or scope limitations
+```
+
+**Proposed safety levels:**
+
+| Level | Name | Description |
+|-------|------|-------------|
+| 1 | `read_only_analysis` | Reads audio, produces metrics. No workspace change. |
+| 2 | `view_navigation` | Opens a plot, focuses a region, adds a marker. Visible but reversible. |
+| 3 | `temporary_preview` | Creates a temporary filter preview or annotation. Not persisted. |
+| 4 | `destructive_or_external` | Permanently modifies data, uploads externally, or changes the project. Requires confirmation. |
+
+**Examples:**
+
+| Tool / Action | Safety Level | Confirmation Required |
+|---------------|-------------|----------------------|
+| `run_spectrum` | Level 1 — read-only analysis | No |
+| `run_cpb` | Level 1 — read-only analysis | No |
+| `run_sound_quality_metrics` | Level 1 — read-only analysis | No |
+| `focus_frequency_region` | Level 2 — view/navigation | No, but visible |
+| `create_marker` | Level 2 — view/navigation | Usually no |
+| `preview_notch_filter` | Level 3 — temporary preview | Usually no if clearly temporary |
+| `apply_filter_permanently` | Level 4 — destructive | Yes |
+| `upload_audio_externally` | Level 4 — external | Yes |
+
+**Implementation note:** No changes to `AgentToolRegistry.cs` should be made until this concept is being explicitly implemented. Add this as a TODO comment when the time comes.
+
+---
+
+## 11.6 Concept 4 — Agent Plan Validation
+
+**Status: Future**
+
+Prompt instructions are not enough as a safety guardrail for a more autonomous agent.
+
+The future backend should have a dedicated `AgentPlanValidator` (or `ToolPolicyValidator`) component that runs *before* `ToolExecutionService` and validates the full plan, not just the tool names.
+
+**Responsibilities:**
+
+```
+validate planner action (is "run_tools" a supported action?)
+validate intent (is the declared intent in the known vocabulary?)
+validate evidenceNeeded types (are they in the supported evidence type list?)
+validate tool names (against the registry whitelist)
+validate selected file IDs (do they exist in the project?)
+validate tool arguments (type-check against each tool's input schema)
+validate safety level (does the plan require user confirmation?)
+validate autonomy mode (does the current mode permit this plan?)
+reject unsupported or unsafe plans with a structured error
+require confirmation for Level 3/4 actions before execution
+```
+
+**Core principle:**
+
+```
+The LLM proposes.
+The backend approves.
+The backend executes.
+```
+
+This is more robust than relying on prompt wording alone, especially when autonomy modes expand and the planner may request workspace-modifying actions.
+
+---
+
+## 11.7 Concept 5 — Proposed Actions Separate from Analysis Tools
+
+**Status: Future**
+
+The future agent should clearly distinguish two categories of operations:
+
+**Analysis tools** — produce evidence, do not modify the workspace:
+
+```
+run_spectrum
+run_cpb
+run_sound_quality_metrics
+run_event_detection
+run_findings
+run_basic_metrics
+get_metadata
+```
+
+**Workspace actions** — change or prepare the UI/workspace:
+
+```
+focus_frequency_region
+focus_time_region
+open_relevant_plot
+highlight_finding
+create_marker
+create_temporary_filter_preview
+```
+
+The planner JSON should separate these into `tools` and `proposedActions` arrays, with each proposed action carrying its safety level and a `requiresConfirmation` flag.
+
+**Future planner output example:**
+
+```json
+{
+  "action": "run_tools",
+  "intent": "detect_specific_issue",
+  "confidence": 0.91,
+  "evidenceNeeded": ["spectrum", "findings"],
+  "tools": [
+    {
+      "name": "run_spectrum",
+      "arguments": {},
+      "reason": "Detect narrowband tonal components."
+    },
+    {
+      "name": "run_findings",
+      "arguments": {},
+      "reason": "Generate structured issue findings."
+    }
+  ],
+  "proposedActions": [
+    {
+      "name": "focus_frequency_region",
+      "arguments": {
+        "centerHz": 685,
+        "widthHz": 300
+      },
+      "reason": "Focus the UI around the detected tonal peak.",
+      "safetyLevel": "view_navigation",
+      "requiresConfirmation": false
+    }
+  ]
+}
+```
+
+**Note:** The current system already has a frontend workspace tool loop (`getState`, `analyze`, `workspace`, `report`). The future architecture formalizes workspace actions as a first-class concept with safety metadata, rather than a separate client-side dispatch path.
+
+---
+
+## 11.8 Concept 6 — Structured Hypothesis Ranking
+
+**Status: Future**
+
+The future agent should not only explain evidence in prose. It should produce **structured ranked hypotheses** before the final natural-language answer, so explanations are grounded in ranked candidates, not just the first plausible interpretation.
+
+**Example hypothesis output:**
+
+```json
+[
+  {
+    "hypothesis": "Tonal whine at 685 Hz",
+    "confidence": "high",
+    "supportingEvidence": [
+      "tonal_peak_685Hz",
+      "cpb_band_delta_630Hz"
+    ],
+    "contradictingEvidence": [],
+    "nextStep": "Check whether the tone follows RPM/order data."
+  },
+  {
+    "hypothesis": "Clipping distortion",
+    "confidence": "low",
+    "supportingEvidence": [],
+    "contradictingEvidence": [
+      "no_clipping_detected"
+    ],
+    "nextStep": "No clipping follow-up needed."
+  }
+]
+```
+
+The hypothesis layer must distinguish:
+
+```
+measured facts           ← directly from tool outputs
+inferred hypotheses      ← derived from evidence
+unsupported explanations ← flagged explicitly as without evidence
+contradicting evidence   ← evidence that argues against a hypothesis
+limitations              ← scope of what was and was not measured
+suggested next tests     ← grounded in the ranked hypotheses
+```
+
+This is one of the key features that will make the agent feel like an autonomous acoustic investigator rather than a prose generator.
+
+---
+
+## 11.9 Concept 7 — Investigation Trace / Timeline
+
+**Status: Future**
+
+The current response is good for chat. The future product should store a **first-class investigation trace** that captures the full reasoning path for every question answered.
+
+**Future investigation record:**
+
+```json
+{
+  "question": "Why does Product B sound harsher than Product A?",
+  "path": "llm_planned",
+  "intent": "explain_perception",
+  "plan": {
+    "evidenceNeeded": [
+      "basic_metrics",
+      "spectrum",
+      "cpb",
+      "sound_quality_metrics",
+      "findings"
+    ],
+    "tools": [
+      "run_basic_metrics",
+      "run_spectrum",
+      "run_cpb",
+      "run_sound_quality_metrics",
+      "run_findings"
+    ]
+  },
+  "toolsRun": [],
+  "parameters": {},
+  "evidenceUsed": [],
+  "hypotheses": [],
+  "actionsTaken": [],
+  "finalAnswer": "",
+  "confidence": "medium",
+  "limitations": [],
+  "suggestedNextSteps": [],
+  "timestamp": ""
+}
+```
+
+The investigation trace will support:
+
+```
+reproducibility          ← same question → same tools → same evidence → same answer
+debugging                ← why did the agent say that?
+report generation        ← trace feeds directly into a structured report
+investigation timeline   ← user can see the history of all questions asked in a session
+project memory           ← past investigations inform future ones
+auditability             ← every claim references measured evidence
+user trust               ← users can inspect the full reasoning path
+```
+
+---
+
+## 11.10 Concept 8 — Autonomy Modes
+
+**Status: Future**
+
+The future agent should support configurable **autonomy modes** so users can control how much the agent is allowed to do autonomously.
+
+**Proposed modes:**
+
+| Mode | Description |
+|------|-------------|
+| `ExplainOnly` | The agent can analyze and explain evidence. It does not change the workspace. |
+| `AssistiveAutonomy` | The agent can run analyses, open relevant plots, focus time/frequency regions, create markers, and generate temporary previews. |
+| `ProactiveInvestigation` | The agent can run multi-step investigations, generate ranked hypotheses, compare many files, suggest next tests, create temporary previews, and draft reports. |
+| `StrictApproval` | The agent asks for explicit user confirmation before every action, including read-only analyses. |
+
+**Intended default:** `AssistiveAutonomy`.
+
+**Note:** Do not change current behavior to match any of these modes until autonomy mode support is explicitly implemented. The current system behaves roughly like `ExplainOnly` without the formal mode structure.
+
+---
+
+## 11.11 Concept 9 — External Knowledge Policy
+
+**Status: Future**
+
+The future agent may use external knowledge: standards documents, product specs, datasheets, or benchmark databases. The documentation and implementation must clearly distinguish the provenance of every claim.
+
+**Knowledge source types:**
+
+```
+measured_acoustic_evidence  ← from backend DSP tools — primary source of truth
+project_benchmark_data      ← validated project-specific reference data
+validated_standard          ← documented, versioned, validated external standard
+internet_context            ← general background context, not measurement evidence
+unverified_external         ← flagged and not used for quantitative claims
+```
+
+**Rules:**
+
+```
+Internet data can provide background context.
+Internet data is not measured acoustic evidence.
+Validated project/benchmark data is preferred over general internet context.
+Public internet sources must not be used to claim a recording is objectively better or worse
+  unless the benchmark is validated and comparable.
+Uploading audio externally requires explicit user confirmation (Level 4 safety action).
+The agent must never mix unverified external data with measured acoustic evidence
+  without clearly labeling the source difference.
+```
+
+---
+
+## 11.12 Concept 10 — Bounded Multi-step Observation Loop
+
+**Status: Future**
+
+The current system plans once, runs tools in parallel, and answers. This is efficient and appropriate for most questions.
+
+The future autonomous version may use a **bounded observation loop** for complex investigations that benefit from iterative evidence gathering:
+
+```
+plan
+  → execute approved tools
+  → observe evidence
+  → decide whether more evidence is needed (LLM observation step)
+  → if yes: execute additional approved tools
+  → repeat until sufficient evidence or max iterations reached
+  → produce ranked hypotheses and final answer
+```
+
+**Required constraints (must be enforced, not just prompted):**
+
+```
+max tool calls per question        ← hard limit, not a prompt instruction
+max planning iterations            ← prevents infinite loops
+cost / time budget limits          ← stops runaway investigations
+no destructive actions without confirmation at any iteration
+no external upload without confirmation at any iteration
+clear stopping condition           ← "enough evidence" or "max iterations"
+```
+
+This loop is only appropriate for complex multi-hypothesis investigations (e.g., "Why does Product B fail the sound quality acceptance test?"). Single-question responses should continue to use the current single-planning-pass approach.
+
+---
+
+## 11.13 Concept 11 — Core Product Principle
+
+**Status: Current (principle) / Future (full execution)**
+
+> **The agent is disruptive because it owns the investigation workflow — not because it is a generic chatbot.**
+
+The future acoustic agent should feel like:
+
+> An acoustic investigation copilot that classifies the user's intent, plans what evidence is needed, runs approved deterministic tools, ranks competing explanations against that evidence, surfaces limitations and unsupported claims, suggests grounded next tests, and builds reproducible investigation reports.
+
+Not:
+
+> A chatbot that guesses things about audio.
+
+This principle applies to every design decision in the agent architecture. Any feature that adds chattiness without evidence grounding moves the product in the wrong direction. Any feature that adds evidence coverage, hypothesis ranking, or investigation reproducibility moves it in the right direction.
+
+---
+
+## 11.14 Implementation TODOs for Future Architecture
+
+These items must be explicitly assigned before any implementation begins.
+
+```
+TODO [Concept 1]:  Add `intent` field to PlannerResponse model
+                   Extend AgentPromptBuilder planner system prompt with intent vocabulary
+                   Validate intent in AgentOrchestrator before tool execution
+
+TODO [Concept 2]:  Add `evidenceNeeded` and `reason` fields to PlannerResponse and PlannerToolRequest
+                   Update AgentPromptBuilder to instruct LLM to populate evidenceNeeded
+                   Use evidenceNeeded in EvidencePackageBuilder to validate coverage
+
+TODO [Concept 3]:  Extend AgentToolDefinition with safetyLevel, requiresConfirmation,
+                   evidenceProduced, allowedAutonomyModes, limitations fields
+                   No behavior change — metadata only until policy engine is added
+
+TODO [Concept 4]:  Create AgentPlanValidator (or ToolPolicyValidator) class
+                   Move whitelist check from AgentOrchestrator into this class
+                   Add intent validation, argument schema validation, safety level check
+
+TODO [Concept 5]:  Add proposedActions array to PlannerResponse
+                   Create WorkspaceAction model with name, arguments, safetyLevel, requiresConfirmation, reason
+                   Route workspace actions through a separate execution path from analysis tools
+
+TODO [Concept 6]:  Add HypothesisRanker component
+                   Define Hypothesis record type with confidence, supportingEvidence, contradictingEvidence, nextStep
+                   Integrate hypothesis list into AgentAskResult response contract
+
+TODO [Concept 7]:  Create InvestigationTrace record type
+                   Persist trace per question in the backend (in-memory first, database later)
+                   Expose trace in AgentAskResult so frontend can show "How I investigated this"
+
+TODO [Concept 8]:  Add AutonomyMode enum and configuration
+                   Pass mode through AgentAskCommand
+                   Use mode in AgentPlanValidator to gate Level 2/3/4 actions
+
+TODO [Concept 9]:  Add KnowledgeSourceType enum to EvidenceItem and FinalAnswerResponse
+                   Implement external knowledge policy rules in AgentResponseValidator
+                   Never add external upload functionality without explicit confirmation flow
+
+TODO [Concept 10]: Design bounded observation loop as a separate orchestration path
+                   Add MaxToolCallsPerQuestion and MaxPlanningIterations configuration
+                   Implement stopping condition check in loop controller
+
+TODO [General]:    All future architecture work should be introduced as thin vertical slices.
+                   Do not implement the full multi-concept stack at once.
+                   The current single-planning-pass orchestrator must remain working
+                   until each slice is tested and validated.
+```
+8. Edge cases
+9. Suggested implementation order
+10. Any assumptions or questions
+
+When I ask for code, please:
+
+1. Keep it aligned with this architecture
+2. Create a thin vertical slice
+3. Avoid unnecessary abstractions
+4. Include clear names
+5. Include tests where appropriate
+6. Avoid placeholder/fake analysis values
+7. Document assumptions
+
+When I ask for sprint planning, please:
+
+1. Break work into small stories
+2. Prioritize end-to-end value
+3. Identify blockers
+4. Identify technical risks
+5. Suggest a realistic sprint goal
+6. Include Definition of Done
+
+---
+
+# 12. Suggested Next Priorities (after current state)
 
 Given the current state, the recommended next work is:
 
@@ -864,7 +1551,7 @@ Given the current state, the recommended next work is:
 
 ---
 
-# 12. Backlog Epics
+# 13. Backlog Epics
 
 1. ~~Project and file import~~ ✅
 2. ~~Metadata and signal overview~~ ✅
@@ -884,7 +1571,7 @@ Given the current state, the recommended next work is:
 
 ---
 
-# 13. Immediate User Stories
+# 14. Immediate User Stories
 
 ## Story 1 — Multi-File Import ✅ DONE
 
@@ -951,7 +1638,7 @@ As a user, I want to analyze many files so that I can rank and compare product r
 
 ---
 
-# 14. API Contracts
+# 15. API Contracts
 
 ## Existing Endpoints (implemented)
 
@@ -1038,7 +1725,7 @@ As a user, I want to analyze many files so that I can rank and compare product r
 
 ---
 
-# 15. Scrum Master Guidance
+# 16. Scrum Master Guidance
 
 ## Sprint Length
 
@@ -1107,7 +1794,7 @@ Build huge architecture for all future metrics before one full feature works.
 
 ---
 
-# 16. Coding Guidelines
+# 17. Coding Guidelines
 
 When generating code:
 
@@ -1149,7 +1836,7 @@ Instead: add a clearly marked assumption, add a TODO, ask for confirmation, or i
 
 ---
 
-# 17. Agent Validation Rules
+# 18. Agent Validation Rules
 
 The agent must follow these rules:
 
@@ -1164,7 +1851,7 @@ The agent must follow these rules:
 
 ---
 
-# 18. Innovation Direction
+# 19. Innovation Direction
 
 The product becomes disruptive when it moves beyond plotting.
 
@@ -1187,7 +1874,7 @@ Not:
 
 ---
 
-# 19. What I Want You To Do When I Ask For Help
+# 20. What I Want You To Do When I Ask For Help
 
 When I ask for a feature, please respond with:
 
@@ -1198,32 +1885,10 @@ When I ask for a feature, please respond with:
 5. Frontend tasks
 6. Data contracts
 7. Tests
-8. Edge cases
-9. Suggested implementation order
-10. Any assumptions or questions
-
-When I ask for code, please:
-
-1. Keep it aligned with this architecture
-2. Create a thin vertical slice
-3. Avoid unnecessary abstractions
-4. Include clear names
-5. Include tests where appropriate
-6. Avoid placeholder/fake analysis values
-7. Document assumptions
-
-When I ask for sprint planning, please:
-
-1. Break work into small stories
-2. Prioritize end-to-end value
-3. Identify blockers
-4. Identify technical risks
-5. Suggest a realistic sprint goal
-6. Include Definition of Done
 
 ---
 
-# 20. Immediate Recommended Sprint Goal
+# 21. Immediate Recommended Sprint Goal
 
 Sprint goal:
 
@@ -1244,7 +1909,7 @@ Findings, tonal peak detection, the first CPB graph slice, CPB comparison, CPB w
 
 ---
 
-# 21. Product North Star
+# 22. Product North Star
 
 The long-term north star is:
 
