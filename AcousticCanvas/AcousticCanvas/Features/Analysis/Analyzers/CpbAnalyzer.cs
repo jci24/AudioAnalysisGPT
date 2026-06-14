@@ -10,53 +10,6 @@ public static class CpbAnalyzer
     private const string Averaging = "power";
     private const string Scaling = "one-sided amplitude, coherent-gain corrected";
     private const string Method = "fft_bin_power_sum_nominal_fractional_octave";
-    private static readonly double[] OctaveCentersHz =
-    [
-        31.5,
-        63,
-        125,
-        250,
-        500,
-        1000,
-        2000,
-        4000,
-        8000,
-        16000,
-    ];
-    private static readonly double[] ThirdOctaveCentersHz =
-    [
-        20,
-        25,
-        31.5,
-        40,
-        50,
-        63,
-        80,
-        100,
-        125,
-        160,
-        200,
-        250,
-        315,
-        400,
-        500,
-        630,
-        800,
-        1000,
-        1250,
-        1600,
-        2000,
-        2500,
-        3150,
-        4000,
-        5000,
-        6300,
-        8000,
-        10000,
-        12500,
-        16000,
-        20000,
-    ];
 
     public static CpbAnalysis Analyze(
         IReadOnlyList<SignalChannel> channels,
@@ -68,8 +21,8 @@ public static class CpbAnalyzer
         string weighting = "z"
     )
     {
-        var normalizedBandMode = NormalizeBandMode(bandMode);
-        var normalizedWeighting = NormalizeWeighting(weighting);
+        var normalizedBandMode = CpbBandBuilder.NormalizeBandMode(bandMode);
+        var normalizedWeighting = CpbWeightingCalculator.NormalizeWeighting(weighting);
         var bandsPerOctave = normalizedBandMode == "octave" ? 1 : 3;
         var channelResults = new List<ChannelCpbAnalysis>();
 
@@ -108,8 +61,8 @@ public static class CpbAnalyzer
                 Scaling = Scaling,
                 Method = Method,
                 Weighting = normalizedWeighting,
-                WeightingMethod = GetWeightingMethod(normalizedWeighting),
-                Limitations = BuildLimitations(
+                WeightingMethod = CpbWeightingCalculator.GetWeightingMethod(normalizedWeighting),
+                Limitations = CpbWeightingCalculator.BuildLimitations(
                     normalizedWeighting,
                     channels.Select(channel => channel.Quantity)
                 ),
@@ -143,8 +96,8 @@ public static class CpbAnalyzer
         string weighting = "z"
     )
     {
-        var normalizedBandMode = NormalizeBandMode(bandMode);
-        var normalizedWeighting = NormalizeWeighting(weighting);
+        var normalizedBandMode = CpbBandBuilder.NormalizeBandMode(bandMode);
+        var normalizedWeighting = CpbWeightingCalculator.NormalizeWeighting(weighting);
         var bandsPerOctave = normalizedBandMode == "octave" ? 1 : 3;
         var nyquistHz = (double)sampleRate / 2.0;
         var channelResults = new List<ChannelCpbAnalysis>();
@@ -175,8 +128,8 @@ public static class CpbAnalyzer
                 Scaling = Scaling,
                 Method = Method,
                 Weighting = normalizedWeighting,
-                WeightingMethod = GetWeightingMethod(normalizedWeighting),
-                Limitations = BuildLimitations(
+                WeightingMethod = CpbWeightingCalculator.GetWeightingMethod(normalizedWeighting),
+                Limitations = CpbWeightingCalculator.BuildLimitations(
                     normalizedWeighting,
                     spectrumAnalysis.Channels.Select(channel => channel.Quantity)
                 ),
@@ -215,11 +168,11 @@ public static class CpbAnalyzer
                 }
                 : null;
 
-        var bands = BuildBands(bandMode, bandsPerOctave, nyquistHz);
+        var bands = CpbBandBuilder.BuildBands(bandMode, bandsPerOctave, nyquistHz);
         var cpbBands = new List<CpbBand>(bands.Count);
 
         // BS/ISO 7196 "As Signal(s)": A/C weighting only applies to sound-pressure signals.
-        var effectiveWeighting = ResolveEffectiveWeighting(weighting, channelSpectrum.Quantity);
+        var effectiveWeighting = CpbWeightingCalculator.ResolveEffectiveWeighting(weighting, channelSpectrum.Quantity);
 
         foreach (var band in bands)
         {
@@ -239,7 +192,7 @@ public static class CpbAnalyzer
             }
 
             var unweightedMagnitude = Math.Sqrt(powerSum);
-            var weightingCorrectionDb = ComputeWeightingCorrectionDb(
+            var weightingCorrectionDb = CpbWeightingCalculator.ComputeWeightingCorrectionDb(
                 band.CenterFrequencyHz,
                 effectiveWeighting
             );
@@ -250,7 +203,7 @@ public static class CpbAnalyzer
             cpbBands.Add(
                 new CpbBand
                 {
-                    Label = FormatBandLabel(band.CenterFrequencyHz),
+                    Label = CpbBandBuilder.FormatBandLabel(band.CenterFrequencyHz),
                     CenterFrequencyHz = Math.Round(band.CenterFrequencyHz, 3),
                     LowerFrequencyHz = Math.Round(band.LowerFrequencyHz, 3),
                     UpperFrequencyHz = Math.Round(band.UpperFrequencyHz, 3),
@@ -303,11 +256,11 @@ public static class CpbAnalyzer
             fftSize,
             overlap
         );
-        var bands = BuildBands(bandMode, bandsPerOctave, channel.SampleRate / 2.0);
+        var bands = CpbBandBuilder.BuildBands(bandMode, bandsPerOctave, channel.SampleRate / 2.0);
         var cpbBands = new List<CpbBand>(bands.Count);
 
         // BS/ISO 7196 "As Signal(s)": A/C weighting only applies to sound-pressure signals.
-        var effectiveWeighting = ResolveEffectiveWeighting(weighting, channel.Quantity);
+        var effectiveWeighting = CpbWeightingCalculator.ResolveEffectiveWeighting(weighting, channel.Quantity);
 
         foreach (var band in bands)
         {
@@ -326,7 +279,7 @@ public static class CpbAnalyzer
             }
 
             var unweightedMagnitude = Math.Sqrt(powerSum);
-            var weightingCorrectionDb = ComputeWeightingCorrectionDb(
+            var weightingCorrectionDb = CpbWeightingCalculator.ComputeWeightingCorrectionDb(
                 band.CenterFrequencyHz,
                 effectiveWeighting
             );
@@ -336,7 +289,7 @@ public static class CpbAnalyzer
             cpbBands.Add(
                 new CpbBand
                 {
-                    Label = FormatBandLabel(band.CenterFrequencyHz),
+                    Label = CpbBandBuilder.FormatBandLabel(band.CenterFrequencyHz),
                     CenterFrequencyHz = Math.Round(band.CenterFrequencyHz, 3),
                     LowerFrequencyHz = Math.Round(band.LowerFrequencyHz, 3),
                     UpperFrequencyHz = Math.Round(band.UpperFrequencyHz, 3),
@@ -419,161 +372,6 @@ public static class CpbAnalyzer
         return new SpectrumPowerData(frequenciesHz, powers);
     }
 
-    private static IReadOnlyList<CpbBandDefinition> BuildBands(
-        string bandMode,
-        int bandsPerOctave,
-        double nyquistHz
-    )
-    {
-        var centers = bandMode == "octave" ? OctaveCentersHz : ThirdOctaveCentersHz;
-        var edgeRatio = Math.Pow(2.0, 1.0 / (2.0 * bandsPerOctave));
-        var bands = centers
-            .Select(center => new CpbBandDefinition(center, center / edgeRatio, center * edgeRatio))
-            .Where(band => band.UpperFrequencyHz >= 20.0 && band.LowerFrequencyHz < nyquistHz)
-            .ToArray();
-
-        // Nominal fractional-octave band edges do not coincide between neighbours, so
-        // derive contiguous plot edges: adjacent bands share a boundary at the geometric
-        // mean of one band's upper edge and the next band's lower edge. This keeps the
-        // rendered staircase risers vertical with no gaps, leaving the frontend to only
-        // draw the supplied points.
-        for (var i = 0; i < bands.Length; i++)
-        {
-            var plotLower =
-                i == 0
-                    ? bands[i].LowerFrequencyHz
-                    : Math.Sqrt(bands[i - 1].UpperFrequencyHz * bands[i].LowerFrequencyHz);
-            var plotUpper =
-                i == bands.Length - 1
-                    ? bands[i].UpperFrequencyHz
-                    : Math.Sqrt(bands[i].UpperFrequencyHz * bands[i + 1].LowerFrequencyHz);
-            bands[i] = bands[i] with
-            {
-                PlotLowerFrequencyHz = plotLower,
-                PlotUpperFrequencyHz = plotUpper,
-            };
-        }
-
-        return bands;
-    }
-
-    private static string NormalizeBandMode(string bandMode)
-    {
-        return bandMode.Equals("octave", StringComparison.OrdinalIgnoreCase)
-            ? "octave"
-            : "third_octave";
-    }
-
-    private static string NormalizeWeighting(string weighting)
-    {
-        if (weighting.Equals("a", StringComparison.OrdinalIgnoreCase))
-        {
-            return "a";
-        }
-
-        if (weighting.Equals("c", StringComparison.OrdinalIgnoreCase))
-        {
-            return "c";
-        }
-
-        return "z";
-    }
-
-    private static string GetWeightingMethod(string weighting)
-    {
-        return weighting switch
-        {
-            "a" => "A-weighting IEC 61672 nominal frequency response",
-            "c" => "C-weighting IEC 61672 nominal frequency response",
-            _ => "Z-weighting unweighted flat response",
-        };
-    }
-
-    // BS/ISO 7196 / BK Connect "As Signal(s)": frequency weighting (A/C) is defined for
-    // sound-pressure signals only. For any other quantity the requested weighting is
-    // suppressed and the flat (Z) response is used.
-    private static string ResolveEffectiveWeighting(string requestedWeighting, string quantity)
-    {
-        if (requestedWeighting == "z")
-        {
-            return "z";
-        }
-
-        return string.Equals(quantity, "sound_pressure", StringComparison.OrdinalIgnoreCase)
-            ? requestedWeighting
-            : "z";
-    }
-
-    private static IReadOnlyList<string> BuildLimitations(
-        string requestedWeighting,
-        IEnumerable<string> quantities
-    )
-    {
-        var limitations = new List<string>
-        {
-            "Nominal fractional-octave bands computed by summing FFT-bin power; not an IEC 61260 filter-bank analysis.",
-        };
-
-        if (
-            requestedWeighting != "z"
-            && quantities.Any(quantity =>
-                !string.Equals(quantity, "sound_pressure", StringComparison.OrdinalIgnoreCase)
-            )
-        )
-        {
-            limitations.Add(
-                $"{requestedWeighting.ToUpperInvariant()}-weighting was not applied to non-sound-pressure channels (BS/ISO 7196): frequency weighting is defined for sound pressure signals only."
-            );
-        }
-
-        return limitations;
-    }
-
-    private static double ComputeWeightingCorrectionDb(double frequencyHz, string weighting)
-    {
-        return weighting switch
-        {
-            "a" => ComputeAWeightingCorrectionDb(frequencyHz),
-            "c" => ComputeCWeightingCorrectionDb(frequencyHz),
-            _ => 0.0,
-        };
-    }
-
-    private static double ComputeAWeightingCorrectionDb(double frequencyHz)
-    {
-        if (frequencyHz <= 0.0)
-        {
-            return double.NegativeInfinity;
-        }
-
-        var frequencySquared = frequencyHz * frequencyHz;
-        var numerator = Math.Pow(12200.0, 2.0) * frequencySquared * frequencySquared;
-        var denominator =
-            (frequencySquared + Math.Pow(20.6, 2.0))
-            * Math.Sqrt(
-                (frequencySquared + Math.Pow(107.7, 2.0))
-                    * (frequencySquared + Math.Pow(737.9, 2.0))
-            )
-            * (frequencySquared + Math.Pow(12200.0, 2.0));
-
-        return 20.0 * Math.Log10(numerator / denominator) + 2.0;
-    }
-
-    private static double ComputeCWeightingCorrectionDb(double frequencyHz)
-    {
-        if (frequencyHz <= 0.0)
-        {
-            return double.NegativeInfinity;
-        }
-
-        var frequencySquared = frequencyHz * frequencyHz;
-        var numerator = Math.Pow(12200.0, 2.0) * frequencySquared;
-        var denominator =
-            (frequencySquared + Math.Pow(20.6, 2.0)) * (frequencySquared + Math.Pow(12200.0, 2.0));
-
-        return 20.0 * Math.Log10(numerator / denominator) + 0.06;
-    }
-
     private static double? ComputeDb(double magnitude, DbReference? reference)
     {
         if (reference is null || reference.Value <= 0.0 || magnitude <= 0.0)
@@ -584,23 +382,13 @@ public static class CpbAnalyzer
         return 20.0 * Math.Log10(magnitude / reference.Value);
     }
 
-    private static string FormatBandLabel(double frequencyHz)
-    {
-        return frequencyHz >= 1000.0 ? $"{frequencyHz / 1000.0:0.##}k" : $"{frequencyHz:0.##}";
-    }
-
     private static double[] BuildHannWindow(int size)
     {
         var window = new double[size];
-
         for (var n = 0; n < size; n++)
         {
-            // Periodic Hann window for FFT/spectral analysis.
-            // Equivalent to creating a symmetric Hann of size + 1
-            // and dropping the final sample.
             window[n] = 0.5 * (1.0 - Math.Cos(2.0 * Math.PI * n / size));
         }
-
         return window;
     }
 
@@ -612,17 +400,17 @@ public static class CpbAnalyzer
         double overlap
     )
     {
-        var regionLength =
-            (int)Math.Ceiling(endSeconds * sampleRate) - (int)Math.Floor(startSeconds * sampleRate);
+        var startSample = (int)Math.Floor(startSeconds * sampleRate);
+        var endSample = (int)Math.Ceiling(endSeconds * sampleRate);
         var hopSize = (int)Math.Max(1, fftSize * (1.0 - overlap));
-        if (regionLength <= 0)
+
+        if (endSample - startSample <= 0)
         {
             return 1;
         }
 
         var count = 0;
-        var pos = (int)Math.Floor(startSeconds * sampleRate);
-        var endSample = (int)Math.Ceiling(endSeconds * sampleRate);
+        var pos = startSample;
         do
         {
             count++;
@@ -634,11 +422,4 @@ public static class CpbAnalyzer
 
     private readonly record struct SpectrumPowerData(double[] FrequenciesHz, double[] Powers);
 
-    private readonly record struct CpbBandDefinition(
-        double CenterFrequencyHz,
-        double LowerFrequencyHz,
-        double UpperFrequencyHz,
-        double PlotLowerFrequencyHz = 0.0,
-        double PlotUpperFrequencyHz = 0.0
-    );
 }

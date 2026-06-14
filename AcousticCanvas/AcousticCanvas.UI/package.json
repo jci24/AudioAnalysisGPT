@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "spell:check": "cspell --config ../cspell.config.json ."
   },
   "dependencies": {
     "@mantine/carousel": "^9.2.2",
@@ -40,6 +41,7 @@
     "@vitejs/plugin-react": "^6.0.1",
     "@vitest/ui": "^4.1.7",
     "autoprefixer": "^10.5.0",
+    "cspell": "^10.0.1",
     "eslint": "^10.3.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",

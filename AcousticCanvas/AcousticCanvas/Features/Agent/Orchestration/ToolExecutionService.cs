@@ -1,4 +1,3 @@
-using System.Text.Json;
 using AcousticCanvas.Features.Analysis.Analyzers;
 using AcousticCanvas.Features.Analysis.Commands;
 using AcousticCanvas.Features.Analysis.Domain;
@@ -37,7 +36,7 @@ public sealed class ToolExecutionService(
 
         if (!AgentToolRegistry.IsToolAllowed(toolName))
         {
-            return BuildFailureOutput(
+            return ToolOutputBuilder.BuildFailureOutput(
                 toolName,
                 "TOOL_NOT_ALLOWED",
                 $"Tool '{toolName}' is not in the allowed tools registry.",
@@ -79,7 +78,7 @@ public sealed class ToolExecutionService(
                     toolRequest.Arguments,
                     cancellationToken
                 ),
-                _ => BuildFailureOutput(
+                _ => ToolOutputBuilder.BuildFailureOutput(
                     toolName,
                     "TOOL_NOT_IMPLEMENTED",
                     $"Tool '{toolName}' is registered but not implemented in ToolExecutionService.",
@@ -88,11 +87,11 @@ public sealed class ToolExecutionService(
                 ),
             };
 
-            return BuildSuccessOutputWithTiming(result, startedAtUtc, DateTime.UtcNow);
+            return ToolOutputBuilder.BuildSuccessOutputWithTiming(result, startedAtUtc, DateTime.UtcNow);
         }
         catch (FileNotFoundException ex)
         {
-            return BuildFailureOutput(
+            return ToolOutputBuilder.BuildFailureOutput(
                 toolName,
                 "FILE_NOT_FOUND",
                 ex.Message,
@@ -102,7 +101,7 @@ public sealed class ToolExecutionService(
         }
         catch (ArgumentException ex)
         {
-            return BuildFailureOutput(
+            return ToolOutputBuilder.BuildFailureOutput(
                 toolName,
                 "INVALID_ARGUMENTS",
                 ex.Message,
@@ -112,7 +111,7 @@ public sealed class ToolExecutionService(
         }
         catch (Exception ex)
         {
-            return BuildFailureOutput(
+            return ToolOutputBuilder.BuildFailureOutput(
                 toolName,
                 "UNEXPECTED_ERROR",
                 ex.Message,
@@ -127,10 +126,10 @@ public sealed class ToolExecutionService(
         CancellationToken cancellationToken
     )
     {
-        var fileIds = ExtractFileIds(arguments);
+        var fileIds = ToolArgumentParser.ExtractFileIds(arguments);
         if (fileIds.Count == 0)
         {
-            return BuildFailureOutput(
+            return ToolOutputBuilder.BuildFailureOutput(
                 "get_metadata",
                 "MISSING_FILE_IDS",
                 "fileIds argument is required and must not be empty."
@@ -166,7 +165,7 @@ public sealed class ToolExecutionService(
         }
 
         var resultData = new { results = metadataResults };
-        return BuildSuccessOutput(
+        return ToolOutputBuilder.BuildSuccessOutput(
             "get_metadata",
             "metadata_" + Guid.NewGuid().ToString("N")[..8],
             resultData
@@ -178,10 +177,10 @@ public sealed class ToolExecutionService(
         CancellationToken cancellationToken
     )
     {
-        var fileIds = ExtractFileIds(arguments);
+        var fileIds = ToolArgumentParser.ExtractFileIds(arguments);
         if (fileIds.Count == 0)
         {
-            return BuildFailureOutput(
+            return ToolOutputBuilder.BuildFailureOutput(
                 "run_basic_metrics",
                 "MISSING_FILE_IDS",
                 "fileIds argument is required and must not be empty."
@@ -225,7 +224,7 @@ public sealed class ToolExecutionService(
         }
 
         var resultData = new { results = metricsResults };
-        return BuildSuccessOutput(
+        return ToolOutputBuilder.BuildSuccessOutput(
             "run_basic_metrics",
             "basic_metrics_" + Guid.NewGuid().ToString("N")[..8],
             resultData
@@ -237,22 +236,22 @@ public sealed class ToolExecutionService(
         CancellationToken cancellationToken
     )
     {
-        var fileId = ExtractSingleFileId(arguments);
+        var fileId = ToolArgumentParser.ExtractSingleFileId(arguments);
         if (string.IsNullOrEmpty(fileId))
         {
-            return BuildFailureOutput(
+            return ToolOutputBuilder.BuildFailureOutput(
                 "run_event_detection",
                 "MISSING_FILE_ID",
                 "fileId argument is required."
             );
         }
 
-        var kind = ExtractStringArgument(arguments, "kind") ?? "clipping";
+        var kind = ToolArgumentParser.ExtractStringArgument(arguments, "kind") ?? "clipping";
         var validKinds = new[] { "clipping", "silence", "loudest", "transient" };
         var kindIsValid = Array.Exists(validKinds, k => k == kind);
         if (!kindIsValid)
         {
-            return BuildFailureOutput(
+            return ToolOutputBuilder.BuildFailureOutput(
                 "run_event_detection",
                 "INVALID_KIND",
                 $"kind '{kind}' is not valid. Supported: {string.Join(", ", validKinds)}."
@@ -262,7 +261,7 @@ public sealed class ToolExecutionService(
         var filePath = audioFileRepository.GetFilePath(fileId);
         if (string.IsNullOrEmpty(filePath))
         {
-            return BuildFailureOutput(
+            return ToolOutputBuilder.BuildFailureOutput(
                 "run_event_detection",
                 "FILE_NOT_FOUND",
                 $"File '{fileId}' not found in storage."
@@ -294,7 +293,7 @@ public sealed class ToolExecutionService(
                 .ToList(),
         };
 
-        return BuildSuccessOutput(
+        return ToolOutputBuilder.BuildSuccessOutput(
             "run_event_detection",
             "events_" + Guid.NewGuid().ToString("N")[..8],
             resultData
@@ -306,18 +305,18 @@ public sealed class ToolExecutionService(
         CancellationToken cancellationToken
     )
     {
-        var fileIds = ExtractFileIds(arguments);
+        var fileIds = ToolArgumentParser.ExtractFileIds(arguments);
         if (fileIds.Count == 0)
         {
-            return BuildFailureOutput(
+            return ToolOutputBuilder.BuildFailureOutput(
                 "run_spectrum",
                 "MISSING_FILE_IDS",
                 "fileIds argument is required and must not be empty."
             );
         }
 
-        var fftSize = ExtractIntArgument(arguments, "fftSize") ?? DefaultFftSize;
-        var overlap = ExtractDoubleArgument(arguments, "overlap") ?? DefaultOverlap;
+        var fftSize = ToolArgumentParser.ExtractIntArgument(arguments, "fftSize") ?? DefaultFftSize;
+        var overlap = ToolArgumentParser.ExtractDoubleArgument(arguments, "overlap") ?? DefaultOverlap;
 
         var spectrumResults = new List<object>();
 
@@ -391,7 +390,7 @@ public sealed class ToolExecutionService(
         }
 
         var resultData = new { results = spectrumResults };
-        return BuildSuccessOutput(
+        return ToolOutputBuilder.BuildSuccessOutput(
             "run_spectrum",
             "spectrum_" + Guid.NewGuid().ToString("N")[..8],
             resultData
@@ -403,18 +402,18 @@ public sealed class ToolExecutionService(
         CancellationToken cancellationToken
     )
     {
-        var fileIds = ExtractFileIds(arguments);
+        var fileIds = ToolArgumentParser.ExtractFileIds(arguments);
         if (fileIds.Count == 0)
         {
-            return BuildFailureOutput(
+            return ToolOutputBuilder.BuildFailureOutput(
                 "run_cpb",
                 "MISSING_FILE_IDS",
                 "fileIds argument is required and must not be empty."
             );
         }
 
-        var bandMode = ExtractStringArgument(arguments, "bandType") ?? DefaultCpbBandMode;
-        var weighting = ExtractStringArgument(arguments, "weighting") ?? "z";
+        var bandMode = ToolArgumentParser.ExtractStringArgument(arguments, "bandType") ?? DefaultCpbBandMode;
+        var weighting = ToolArgumentParser.ExtractStringArgument(arguments, "weighting") ?? "z";
 
         var cpbResults = new List<object>();
 
@@ -481,7 +480,7 @@ public sealed class ToolExecutionService(
         }
 
         var resultData = new { results = cpbResults };
-        return BuildSuccessOutput(
+        return ToolOutputBuilder.BuildSuccessOutput(
             "run_cpb",
             "cpb_" + Guid.NewGuid().ToString("N")[..8],
             resultData
@@ -493,11 +492,11 @@ public sealed class ToolExecutionService(
         CancellationToken cancellationToken
     )
     {
-        var fileIds = ExtractFileIds(arguments);
+        var fileIds = ToolArgumentParser.ExtractFileIds(arguments);
         if (fileIds.Count == 0)
         {
             return Task.FromResult(
-                BuildFailureOutput(
+                ToolOutputBuilder.BuildFailureOutput(
                     "run_spectrogram",
                     "MISSING_FILE_IDS",
                     "fileIds argument is required and must not be empty."
@@ -575,7 +574,7 @@ public sealed class ToolExecutionService(
 
         var resultData = new { results = spectrogramResults };
         return Task.FromResult(
-            BuildSuccessOutput(
+            ToolOutputBuilder.BuildSuccessOutput(
                 "run_spectrogram",
                 "spectrogram_" + Guid.NewGuid().ToString("N")[..8],
                 resultData
@@ -660,10 +659,10 @@ public sealed class ToolExecutionService(
         CancellationToken cancellationToken
     )
     {
-        var fileIds = ExtractFileIds(arguments);
+        var fileIds = ToolArgumentParser.ExtractFileIds(arguments);
         if (fileIds.Count == 0)
         {
-            return BuildFailureOutput(
+            return ToolOutputBuilder.BuildFailureOutput(
                 "run_sound_quality_metrics",
                 "MISSING_FILE_IDS",
                 "fileIds argument is required and must not be empty."
@@ -731,7 +730,7 @@ public sealed class ToolExecutionService(
         }
 
         var resultData = new { results = soundQualityResults };
-        return BuildSuccessOutput(
+        return ToolOutputBuilder.BuildSuccessOutput(
             "run_sound_quality_metrics",
             "sound_quality_" + Guid.NewGuid().ToString("N")[..8],
             resultData
@@ -743,10 +742,10 @@ public sealed class ToolExecutionService(
         CancellationToken cancellationToken
     )
     {
-        var fileId = ExtractSingleFileId(arguments);
+        var fileId = ToolArgumentParser.ExtractSingleFileId(arguments);
         if (string.IsNullOrEmpty(fileId))
         {
-            return BuildFailureOutput(
+            return ToolOutputBuilder.BuildFailureOutput(
                 "run_findings",
                 "MISSING_FILE_ID",
                 "fileId argument is required."
@@ -756,7 +755,7 @@ public sealed class ToolExecutionService(
         var filePath = audioFileRepository.GetFilePath(fileId);
         if (string.IsNullOrEmpty(filePath))
         {
-            return BuildFailureOutput(
+            return ToolOutputBuilder.BuildFailureOutput(
                 "run_findings",
                 "FILE_NOT_FOUND",
                 $"File '{fileId}' not found in storage."
@@ -789,23 +788,21 @@ public sealed class ToolExecutionService(
                 .ToList(),
         };
 
-        return BuildSuccessOutput(
+        return ToolOutputBuilder.BuildSuccessOutput(
             "run_findings",
             "findings_" + Guid.NewGuid().ToString("N")[..8],
             resultData
         );
     }
 
-    // ─── Helpers ───────────────────────────────────────────────────────────
-
     private static ChannelLevelAnalysis? GetPrimaryChannel(LevelAnalysis level)
     {
-        if (level.Combined is not null)
+        if (level.Channels.Count == 0)
         {
-            return level.Combined;
+            return null;
         }
 
-        return level.Channels.Count > 0 ? level.Channels[0] : null;
+        return level.Channels[0];
     }
 
     private static double GetFileDurationSeconds(string filePath)
@@ -821,200 +818,4 @@ public sealed class ToolExecutionService(
         }
     }
 
-    private static List<string> ExtractFileIds(Dictionary<string, object?> arguments)
-    {
-        if (!arguments.TryGetValue("fileIds", out var rawFileIds))
-        {
-            return [];
-        }
-
-        if (rawFileIds is JsonElement jsonElement)
-        {
-            if (jsonElement.ValueKind == JsonValueKind.Array)
-            {
-                var fileIds = new List<string>();
-                foreach (var item in jsonElement.EnumerateArray())
-                {
-                    var stringValue = item.GetString();
-                    if (!string.IsNullOrWhiteSpace(stringValue))
-                    {
-                        fileIds.Add(stringValue.Trim());
-                    }
-                }
-                return fileIds;
-            }
-
-            if (jsonElement.ValueKind == JsonValueKind.String)
-            {
-                var commaSeparated = jsonElement.GetString() ?? string.Empty;
-                return SplitCommaSeparatedIds(commaSeparated);
-            }
-        }
-
-        if (rawFileIds is IEnumerable<string> stringList)
-        {
-            var fileIds = new List<string>();
-            foreach (var item in stringList)
-            {
-                if (!string.IsNullOrWhiteSpace(item))
-                {
-                    fileIds.Add(item.Trim());
-                }
-            }
-            return fileIds;
-        }
-
-        if (rawFileIds is string rawString)
-        {
-            return SplitCommaSeparatedIds(rawString);
-        }
-
-        return [];
-    }
-
-    private static List<string> SplitCommaSeparatedIds(string commaSeparated)
-    {
-        var result = new List<string>();
-        foreach (
-            var part in commaSeparated.Split(
-                ',',
-                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
-            )
-        )
-        {
-            if (!string.IsNullOrWhiteSpace(part))
-            {
-                result.Add(part);
-            }
-        }
-        return result;
-    }
-
-    private static string? ExtractSingleFileId(Dictionary<string, object?> arguments)
-    {
-        if (!arguments.TryGetValue("fileId", out var rawFileId))
-        {
-            return null;
-        }
-
-        if (rawFileId is JsonElement jsonElement && jsonElement.ValueKind == JsonValueKind.String)
-        {
-            return jsonElement.GetString();
-        }
-
-        return rawFileId?.ToString();
-    }
-
-    private static string? ExtractStringArgument(Dictionary<string, object?> arguments, string key)
-    {
-        if (!arguments.TryGetValue(key, out var rawValue))
-        {
-            return null;
-        }
-
-        if (rawValue is JsonElement jsonElement && jsonElement.ValueKind == JsonValueKind.String)
-        {
-            return jsonElement.GetString();
-        }
-
-        return rawValue?.ToString();
-    }
-
-    private static int? ExtractIntArgument(Dictionary<string, object?> arguments, string key)
-    {
-        if (!arguments.TryGetValue(key, out var rawValue))
-        {
-            return null;
-        }
-
-        if (rawValue is JsonElement jsonElement)
-        {
-            if (
-                jsonElement.ValueKind == JsonValueKind.Number
-                && jsonElement.TryGetInt32(out var intValue)
-            )
-            {
-                return intValue;
-            }
-        }
-
-        return null;
-    }
-
-    private static double? ExtractDoubleArgument(Dictionary<string, object?> arguments, string key)
-    {
-        if (!arguments.TryGetValue(key, out var rawValue))
-        {
-            return null;
-        }
-
-        if (rawValue is JsonElement jsonElement)
-        {
-            if (
-                jsonElement.ValueKind == JsonValueKind.Number
-                && jsonElement.TryGetDouble(out var doubleValue)
-            )
-            {
-                return doubleValue;
-            }
-        }
-
-        return null;
-    }
-
-    private static ToolExecutionOutput BuildSuccessOutput(
-        string toolName,
-        string resultRef,
-        object resultData
-    )
-    {
-        return new ToolExecutionOutput
-        {
-            ToolName = toolName,
-            Status = "completed",
-            ResultRef = resultRef,
-            ResultData = resultData,
-            StartedAtUtc = null,
-            FinishedAtUtc = null,
-        };
-    }
-
-    private static ToolExecutionOutput BuildSuccessOutputWithTiming(
-        ToolExecutionOutput output,
-        DateTime startedAtUtc,
-        DateTime finishedAtUtc
-    )
-    {
-        return new ToolExecutionOutput
-        {
-            ToolName = output.ToolName,
-            Status = output.Status,
-            ResultRef = output.ResultRef,
-            ResultData = output.ResultData,
-            ErrorCode = output.ErrorCode,
-            ErrorMessage = output.ErrorMessage,
-            StartedAtUtc = startedAtUtc,
-            FinishedAtUtc = finishedAtUtc,
-        };
-    }
-
-    private static ToolExecutionOutput BuildFailureOutput(
-        string toolName,
-        string errorCode,
-        string errorMessage,
-        DateTime? startedAtUtc = null,
-        DateTime? finishedAtUtc = null
-    )
-    {
-        return new ToolExecutionOutput
-        {
-            ToolName = toolName,
-            Status = "failed",
-            ResultRef = string.Empty,
-            ErrorCode = errorCode,
-            ErrorMessage = errorMessage,
-            StartedAtUtc = startedAtUtc,
-            FinishedAtUtc = finishedAtUtc,
-        };
-    }
 }

@@ -21,7 +21,7 @@ public sealed class AgentOrchestrator(
         var metaAnswer = AgentMetaQuestionRouter.TryAnswer(command.Question);
         if (metaAnswer is not null)
         {
-            var metaInvestigationTrace = BuildInvestigationTrace(
+            var metaInvestigationTrace = AgentResultBuilder.BuildInvestigationTrace(
                 conversationId,
                 command.Question,
                 InvestigationPath.MetaQuestion,
@@ -33,7 +33,7 @@ public sealed class AgentOrchestrator(
 
             investigationTraceStore.Store(metaInvestigationTrace);
 
-            return BuildNoToolConversationResult(
+            return AgentResultBuilder.BuildNoToolConversationResult(
                 conversationId,
                 metaAnswer,
                 metaInvestigationTrace
@@ -48,7 +48,7 @@ public sealed class AgentOrchestrator(
         {
             var answer =
                 "No audio files are currently loaded. Please upload and select an audio file first, then ask your question about that file.";
-            var noFilesInvestigationTrace = BuildInvestigationTrace(
+            var noFilesInvestigationTrace = AgentResultBuilder.BuildInvestigationTrace(
                 conversationId,
                 command.Question,
                 InvestigationPath.NoFiles,
@@ -60,7 +60,7 @@ public sealed class AgentOrchestrator(
 
             investigationTraceStore.Store(noFilesInvestigationTrace);
 
-            return BuildNoToolConversationResult(conversationId, answer, noFilesInvestigationTrace);
+            return AgentResultBuilder.BuildNoToolConversationResult(conversationId, answer, noFilesInvestigationTrace);
         }
 
         // Step 0: Answer plain deterministic-fact questions (peak/RMS/sample rate/etc.)
@@ -92,7 +92,7 @@ public sealed class AgentOrchestrator(
         // Step 3: Handle non-tool actions.
         if (plannerResponse.Action == "ask_clarification")
         {
-            return BuildClarificationResult(
+            return AgentResultBuilder.BuildClarificationResult(
                 conversationId,
                 plannerResponse.ClarificationQuestion ?? "Could you provide more context?"
             );
@@ -100,7 +100,7 @@ public sealed class AgentOrchestrator(
 
         if (plannerResponse.Action == "no_analysis_needed")
         {
-            return BuildNoAnalysisResult(
+            return AgentResultBuilder.BuildNoAnalysisResult(
                 conversationId,
                 command.Question,
                 plannerResponse.Reason ?? "No analysis was required for this question."
@@ -144,18 +144,18 @@ public sealed class AgentOrchestrator(
         var validationResult = AgentResponseValidator.Validate(finalAnswer, evidencePackage);
 
         // Step 9: Build and return the result.
-        var toolExecutionRecords = BuildToolExecutionRecords(toolExecutionOutputs);
-        var toolResultsData = BuildToolResultsData(toolExecutionOutputs);
+        var toolExecutionRecords = AgentResultBuilder.BuildToolExecutionRecords(toolExecutionOutputs);
+        var toolResultsData = AgentResultBuilder.BuildToolResultsData(toolExecutionOutputs);
         var answerWithEmbeddedTokens = EmbedEvidenceTokensInAnswer(
             finalAnswer.Answer,
             finalAnswer.EvidenceReferences,
             evidencePackage
         );
 
-        var plannedToolTraces = BuildPlannedToolTraces(validatedToolRequests);
-        var toolExecutionTraces = BuildToolExecutionTraces(toolExecutionOutputs);
+        var plannedToolTraces = AgentResultBuilder.BuildPlannedToolTraces(validatedToolRequests);
+        var toolExecutionTraces = AgentResultBuilder.BuildToolExecutionTraces(toolExecutionOutputs);
 
-        var investigationTrace = BuildInvestigationTrace(
+        var investigationTrace = AgentResultBuilder.BuildInvestigationTrace(
             conversationId,
             command.Question,
             InvestigationPath.LlmPlanned,
@@ -172,9 +172,9 @@ public sealed class AgentOrchestrator(
             Answer: answerWithEmbeddedTokens,
             EvidencePackageId: evidencePackage.EvidencePackageId,
             EvidenceReferences: finalAnswer.EvidenceReferences,
-            EvidenceItems: BuildEvidenceItems(evidencePackage),
+            EvidenceItems: AgentResultBuilder.BuildEvidenceItems(evidencePackage),
             Confidence: finalAnswer.Confidence,
-            Limitations: MergeAndDeduplicate(finalAnswer.Limitations, evidencePackage.Limitations),
+            Limitations: AgentResultBuilder.MergeAndDeduplicate(finalAnswer.Limitations, evidencePackage.Limitations),
             SuggestedNextSteps: finalAnswer.SuggestedNextSteps,
             ToolExecutions: toolExecutionRecords,
             ValidationWarning: validationResult.HasWarning,
@@ -212,17 +212,17 @@ public sealed class AgentOrchestrator(
         );
 
         var finalAnswer = DeterministicAnswerWriter.Write(deterministicPlan, evidencePackage);
-        var toolExecutionRecords = BuildToolExecutionRecords([toolOutput]);
-        var toolResultsData = BuildToolResultsData([toolOutput]);
+        var toolExecutionRecords = AgentResultBuilder.BuildToolExecutionRecords([toolOutput]);
+        var toolResultsData = AgentResultBuilder.BuildToolResultsData([toolOutput]);
         var answerWithEmbeddedTokens = EmbedEvidenceTokensInAnswer(
             finalAnswer.Answer,
             finalAnswer.EvidenceReferences,
             evidencePackage
         );
 
-        var toolExecutionTraces = BuildToolExecutionTraces([toolOutput]);
+        var toolExecutionTraces = AgentResultBuilder.BuildToolExecutionTraces([toolOutput]);
 
-        var investigationTrace = BuildInvestigationTrace(
+        var investigationTrace = AgentResultBuilder.BuildInvestigationTrace(
             conversationId,
             command.Question,
             InvestigationPath.DeterministicFact,
@@ -239,7 +239,7 @@ public sealed class AgentOrchestrator(
             Answer: answerWithEmbeddedTokens,
             EvidencePackageId: evidencePackage.EvidencePackageId,
             EvidenceReferences: finalAnswer.EvidenceReferences,
-            EvidenceItems: BuildEvidenceItems(evidencePackage),
+            EvidenceItems: AgentResultBuilder.BuildEvidenceItems(evidencePackage),
             Confidence: finalAnswer.Confidence,
             Limitations: finalAnswer.Limitations,
             SuggestedNextSteps: finalAnswer.SuggestedNextSteps,
@@ -293,210 +293,6 @@ public sealed class AgentOrchestrator(
         }
 
         return allowedTools;
-    }
-
-    private static IReadOnlyDictionary<string, object>? BuildToolResultsData(
-        IEnumerable<ToolExecutionOutput> toolOutputs
-    )
-    {
-        var dict = new Dictionary<string, object>();
-        foreach (var output in toolOutputs)
-        {
-            if (
-                output.Status == "completed"
-                && output.ResultData is not null
-                && !string.IsNullOrEmpty(output.ResultRef)
-            )
-                dict[output.ResultRef] = output.ResultData;
-        }
-        return dict.Count > 0 ? dict : null;
-    }
-
-    private static IReadOnlyList<AgentEvidenceItem> BuildEvidenceItems(
-        EvidencePackage evidencePackage
-    )
-    {
-        var evidenceItems = new List<AgentEvidenceItem>();
-
-        foreach (var item in evidencePackage.KeyEvidence)
-        {
-            evidenceItems.Add(
-                new AgentEvidenceItem(EvidenceId: item.EvidenceId, Type: item.Type, Data: item.Data)
-            );
-        }
-
-        return evidenceItems;
-    }
-
-    private static IReadOnlyList<AgentToolExecutionRecord> BuildToolExecutionRecords(
-        List<ToolExecutionOutput> toolOutputs
-    )
-    {
-        var records = new List<AgentToolExecutionRecord>();
-
-        foreach (var output in toolOutputs)
-        {
-            records.Add(
-                new AgentToolExecutionRecord(
-                    ToolName: output.ToolName,
-                    Status: output.Status,
-                    ResultRef: output.Status == "completed" ? output.ResultRef : null,
-                    ErrorCode: output.ErrorCode,
-                    ErrorMessage: output.ErrorMessage
-                )
-            );
-        }
-
-        return records;
-    }
-
-    private static IReadOnlyList<string> MergeAndDeduplicate(
-        IReadOnlyList<string> fromAgent,
-        IReadOnlyList<string> fromEvidence
-    )
-    {
-        var merged = new List<string>();
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var item in fromAgent)
-        {
-            if (!string.IsNullOrWhiteSpace(item) && seen.Add(item))
-            {
-                merged.Add(item);
-            }
-        }
-
-        foreach (var item in fromEvidence)
-        {
-            if (!string.IsNullOrWhiteSpace(item) && seen.Add(item))
-            {
-                merged.Add(item);
-            }
-        }
-
-        return merged;
-    }
-
-    private static AgentAskResult BuildClarificationResult(string conversationId, string question)
-    {
-        return new AgentAskResult(
-            ConversationId: conversationId,
-            Answer: question,
-            EvidencePackageId: string.Empty,
-            EvidenceReferences: [],
-            EvidenceItems: [],
-            Confidence: "low",
-            Limitations: ["Clarification needed before analysis can run."],
-            SuggestedNextSteps: [],
-            ToolExecutions: [],
-            ValidationWarning: false,
-            ToolResultsData: null,
-            PlannedTools: [],
-            PlannerReason: null,
-            InvestigationTrace: null
-        );
-    }
-
-    private static AgentAskResult BuildNoAnalysisResult(
-        string conversationId,
-        string userQuestion,
-        string reason
-    )
-    {
-        return new AgentAskResult(
-            ConversationId: conversationId,
-            Answer: reason,
-            EvidencePackageId: string.Empty,
-            EvidenceReferences: [],
-            EvidenceItems: [],
-            Confidence: "low",
-            Limitations: [],
-            SuggestedNextSteps: [],
-            ToolExecutions: [],
-            ValidationWarning: false,
-            ToolResultsData: null,
-            PlannedTools: [],
-            PlannerReason: null,
-            InvestigationTrace: null
-        );
-    }
-
-    private static AgentAskResult BuildNoToolConversationResult(
-        string conversationId,
-        string answer,
-        InvestigationTrace investigationTrace
-    )
-    {
-        return new AgentAskResult(
-            ConversationId: conversationId,
-            Answer: answer,
-            EvidencePackageId: string.Empty,
-            EvidenceReferences: [],
-            EvidenceItems: [],
-            Confidence: "high",
-            Limitations: [],
-            SuggestedNextSteps: [],
-            ToolExecutions: [],
-            ValidationWarning: false,
-            ToolResultsData: null,
-            PlannedTools: [],
-            PlannerReason: "Answered as an Agent behavior question; no audio analysis was needed.",
-            InvestigationTrace: investigationTrace
-        );
-    }
-
-    private static InvestigationTrace BuildInvestigationTrace(
-        string conversationId,
-        string question,
-        InvestigationPath path,
-        IReadOnlyList<PlannedToolTrace> plannedTools,
-        IReadOnlyList<ToolExecutionTrace> toolExecutions,
-        string finalAnswer,
-        string confidence
-    )
-    {
-        return new InvestigationTrace(
-            Question: question,
-            ConversationId: conversationId,
-            Path: path,
-            PlannedTools: plannedTools,
-            ToolExecutions: toolExecutions,
-            FinalAnswer: finalAnswer,
-            Confidence: confidence,
-            TimestampUtc: DateTime.UtcNow
-        );
-    }
-
-    private static IReadOnlyList<PlannedToolTrace> BuildPlannedToolTraces(
-        List<PlannerToolRequest> toolRequests
-    )
-    {
-        var traces = new List<PlannedToolTrace>();
-        foreach (var request in toolRequests)
-        {
-            traces.Add(new PlannedToolTrace(Name: request.Name, Arguments: request.Arguments));
-        }
-        return traces;
-    }
-
-    private static IReadOnlyList<ToolExecutionTrace> BuildToolExecutionTraces(
-        List<ToolExecutionOutput> toolOutputs
-    )
-    {
-        var traces = new List<ToolExecutionTrace>();
-        foreach (var output in toolOutputs)
-        {
-            traces.Add(
-                new ToolExecutionTrace(
-                    Name: output.ToolName,
-                    Status: output.Status,
-                    StartedAtUtc: output.StartedAtUtc,
-                    FinishedAtUtc: output.FinishedAtUtc,
-                    ErrorMessage: output.ErrorMessage
-                )
-            );
-        }
-        return traces;
     }
 
     private static string EmbedEvidenceTokensInAnswer(

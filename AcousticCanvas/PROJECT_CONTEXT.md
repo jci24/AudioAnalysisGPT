@@ -39,7 +39,7 @@ The AI should behave more like a junior acoustic engineer or investigation copil
 
 ---
 
-# 2. Current State of the Application (Last updated: 2026-06-10)
+# 2. Current State of the Application (Last updated: 2026-06-14)
 
 ## Stack
 
@@ -90,7 +90,7 @@ The UI supports two main workspaces:
 | Agent orchestration — `ToolResultsData` in response | ✅ Done | All 7 tool outputs forwarded to frontend as structured data |
 | Agent orchestration — evidence contract | ✅ Done | `AgentAskResult` returns `EvidenceReferences` + `EvidenceItems` so frontend citations can point to measured backend evidence |
 | Agent orchestration — investigation trace | ✅ Done | `InvestigationTrace` record + in-memory store exposed in `AgentAskResult` for reproducibility |
-| Batch benchmarking | ❌ Not started | — |
+| Batch benchmarking | ✅ Done | `POST /api/analysis/batch-benchmark` |
 | Python sidecar | ✅ Active | `mosqito==1.2.1`, `PyOctaveBand==1.2.2` installed; executable path in `appsettings.Development.json` |
 
 ### Backend Analysis Details
@@ -180,7 +180,7 @@ SignalChannel {
 | Calibration UI | 🟡 Referenced in types | Not implemented |
 | CPB / octave band visualization | ✅ Done | Collapsible CPB panel with octave / 1⁄3 octave modes |
 | Sound quality metrics display | ✅ First slice done | Manual panel for MoSQITo stationary loudness + DIN sharpness |
-| Batch comparison table | ❌ Not started | — |
+| Batch comparison table | ✅ Done | Ranking, outliers, file rows |
 | Findings panel | ✅ Done | Severity-coded cards, tonal peak findings, evidence chips, suggested next step, time range |
 | UI brand name | ✅ Done | Header logo shows **SoundLens** (internal codebase remains AcousticCanvas) |
 
@@ -1121,19 +1121,19 @@ Must-have features:
 - ✅ Agent can explain A/B differences
 - ✅ Investigation trace integration (InvestigationTrace record, in-memory store, exposed in AgentAskResult)
 
-## ❌ Milestone 4 — Batch Benchmarking — NOT STARTED
+## ✅ Milestone 4 — Batch Benchmarking — COMPLETE
 
-Must-have features:
+All acceptance criteria met:
 
-- Import and analyze many files (10–100+)
-- Batch metrics calculation
-- Ranking table
-- Outlier detection
-- Reference vs candidate comparison
-- Grouping/tagging files
-- Batch findings
-- Agent summary of batch results
-- Export batch report
+- ✅ Import and analyze many files (10–100+)
+- ✅ Batch metrics calculation
+- ✅ Ranking table
+- ✅ Outlier detection
+- ✅ Reference vs candidate comparison
+- ✅ Grouping/tagging files
+- ✅ Batch findings
+- ✅ Agent summary of batch results
+- ✅ Export batch report
 
 ## ❌ Milestone 5 — Investigation Workspace — NOT STARTED
 
