@@ -27,16 +27,17 @@ public class GetWaveformHandler : CommandHandler<GetWaveformQuery, WaveformResul
             throw new InvalidOperationException("No waveform buckets could be extracted.");
         }
 
-        var globalMinFs = ComputeGlobalMin(peaks);
-        var globalMaxFs = ComputeGlobalMax(peaks);
+        var peaksInPa = ConvertSamplesToPascals(peaks);
+        var globalMinPa = ComputeGlobalMin(peaksInPa);
+        var globalMaxPa = ComputeGlobalMax(peaksInPa);
 
         var result = new WaveformResult(
             metadata.DurationSeconds,
             metadata.SampleRate,
             metadata.Channels,
-            Math.Round(globalMinFs, 6),
-            Math.Round(globalMaxFs, 6),
-            peaks
+            Math.Round(globalMinPa, 6),
+            Math.Round(globalMaxPa, 6),
+            peaksInPa
         );
 
         return Task.FromResult(result);
@@ -94,6 +95,19 @@ public class GetWaveformHandler : CommandHandler<GetWaveformQuery, WaveformResul
                 min = buffer[index];
         }
         return min == float.MaxValue ? 0f : min;
+    }
+
+    private static float[] ConvertSamplesToPascals(float[] samples)
+    {
+        // Calibration: 0 dBFS = 91 dB SPL, where FS = 1 Pa (peak)
+        // Conversion: multiply digital samples by 1.0 to get Pa
+        const double pascalsPerFullScale = 1.0;
+        var result = new float[samples.Length];
+        for (var index = 0; index < samples.Length; index++)
+        {
+            result[index] = (float)(samples[index] * pascalsPerFullScale);
+        }
+        return result;
     }
 
     private static float ComputeBucketMax(float[] buffer, int count)

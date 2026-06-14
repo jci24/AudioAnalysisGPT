@@ -10,7 +10,7 @@ export const AnalysisOrchestrator = (): JSX.Element => {
   const error = useAppSelector(analysisErrorSelector);
 
   if (!showInspector) {
-    return null;
+    return <></>;
   }
 
   return <AnalysisInspector result={result} status={status} error={error} />;

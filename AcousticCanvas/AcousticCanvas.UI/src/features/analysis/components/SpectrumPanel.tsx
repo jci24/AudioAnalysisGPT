@@ -1,7 +1,7 @@
 import type { JSX } from 'react';
 import { useEffect, useState } from 'react';
 import { Select, ActionIcon, Text, Group, Loader, Box, Checkbox, Badge, TextInput } from '@mantine/core';
-import { IconArrowsMaximize, IconArrowsMinimize, IconChevronDown, IconChevronRight, IconX, IconChartLine } from '@tabler/icons-react';
+import { IconArrowsMaximize, IconArrowsMinimize, IconChevronDown, IconChevronRight, IconX, IconChartLine, IconSettings } from '@tabler/icons-react';
 import { useAppSelector, useAppDispatch } from '../../../store/reduxHooks';
 import { useRunSpectrum } from '../hooks/useRunSpectrum';
 import {
@@ -10,7 +10,10 @@ import {
   spectrumErrorSelector,
   spectrumUserParametersSelector,
   spectrumSetZoomRange,
+  spectrumSetParameters,
+  spectrumClear,
 } from '../store/spectrumSlice';
+import { FFT_SIZE_OPTIONS } from '../types/spectrumTypes';
 import { activeSelectionSelector } from '../../waveform/store/waveformSelectionSlice';
 import { cursorFrequencyHovered, cursorFrequencyCleared, cursorFrequencyHzSelector } from '../store/analysisCursorSlice';
 import { SpectrumCanvas } from './SpectrumCanvas';
@@ -47,6 +50,7 @@ export const SpectrumPanel = ({
 
   const [hiddenChannelIds, setHiddenChannelIds] = useState<Set<string>>(new Set());
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [panelHeight, setPanelHeight] = useState(200);
   const effectiveFileId = selectedFileId ?? availableFiles[0]?.id ?? null;
   const selectedFile = availableFiles.find((file) => file.id === effectiveFileId);
@@ -59,6 +63,11 @@ export const SpectrumPanel = ({
       onFileSelect(panelId, effectiveFileId);
     }
   }, [effectiveFileId, onFileSelect, panelId, selectedFileId]);
+
+  // Clear data when file changes to prevent showing stale data from previous file.
+  useEffect(() => {
+    dispatch(spectrumClear());
+  }, [effectiveFileId, dispatch]);
 
   const toggleChannel = (channelId: string): void => {
     setHiddenChannelIds((prev) => {
@@ -76,9 +85,10 @@ export const SpectrumPanel = ({
     dispatch(spectrumSetZoomRange({ minFrequencyHz, maxFrequencyHz }));
   };
 
-  // Auto-run when file or selection changes.
+  // Auto-run when file or selection changes, but only if panel is expanded.
   useEffect(() => {
     if (!effectiveFileId || !hasRegion) return;
+    if (isCollapsed) return;
     const timeoutId = window.setTimeout(() => {
       runSpectrum({
         fileId: effectiveFileId,
@@ -88,11 +98,12 @@ export const SpectrumPanel = ({
       });
     }, 180);
     return () => window.clearTimeout(timeoutId);
-  }, [effectiveFileId, hasRegion, regionStartSeconds, regionEndSeconds, spectrumUserParameters, runSpectrum]);
+  }, [effectiveFileId, hasRegion, regionStartSeconds, regionEndSeconds, spectrumUserParameters, runSpectrum, isCollapsed]);
 
-  // Re-fetch on mount if no result exists
+  // Refetch when panel expands if no result exists.
   useEffect(() => {
     if (!effectiveFileId || !selectedFile) return;
+    if (isCollapsed) return;
     if (spectrumResult) return;
     if (!hasRegion) return;
     const timeoutId = window.setTimeout(() => {
@@ -104,21 +115,29 @@ export const SpectrumPanel = ({
       });
     }, 200);
     return () => window.clearTimeout(timeoutId);
-  }, [effectiveFileId, selectedFile, hasRegion, regionStartSeconds, regionEndSeconds, spectrumUserParameters, runSpectrum, spectrumResult]);
+  }, [effectiveFileId, selectedFile, hasRegion, regionStartSeconds, regionEndSeconds, spectrumUserParameters, runSpectrum, spectrumResult, isCollapsed]);
+
+  // Clear data when panel collapses to free memory.
+  useEffect(() => {
+    if (isCollapsed) {
+      dispatch(spectrumClear());
+    }
+  }, [isCollapsed, dispatch]);
 
   const fileSelectOptions = availableFiles.map((f) => ({ value: f.id, label: f.name }));
   const isRunning = spectrumStatus === 'running';
 
   const visibleChannels = spectrumResult && hasRegion
     ? spectrumResult.channels
-        .filter((ch) => !hiddenChannelIds.has(ch.channelId))
-        .map((ch) => ({
+        .map((ch, originalIndex) => ({
           channelId: ch.channelId,
           channelName: ch.channelName,
           points: ch.points,
           yUnit: ch.yUnit,
           yAxisLabel: ch.yAxisLabel,
+          originalIndex,
         }))
+        .filter((ch) => !hiddenChannelIds.has(ch.channelId))
     : [];
 
   const hasMultipleChannels = spectrumResult && spectrumResult.channels.length > 1;
@@ -166,47 +185,6 @@ export const SpectrumPanel = ({
               : 'Select region'}
           </Badge>
           {isRunning && <Loader size="xs" color="teal" />}
-          <TextInput
-            size="xs"
-            placeholder="Min Hz"
-            value={spectrumUserParameters.minFrequencyHz ?? ''}
-            onChange={(event) => {
-              const value = event.currentTarget.value;
-              const parsed = value === '' ? null : Number(value);
-              if (value === '' || (!isNaN(parsed) && parsed !== null && parsed >= 0)) {
-                handleSetZoomRange(parsed, spectrumUserParameters.maxFrequencyHz);
-              }
-            }}
-            style={{ width: 70 }}
-            styles={{ input: { fontFamily: 'var(--font-mono)', fontSize: '0.72rem' } }}
-          />
-          <TextInput
-            size="xs"
-            placeholder="Max Hz"
-            value={spectrumUserParameters.maxFrequencyHz ?? ''}
-            onChange={(event) => {
-              const value = event.currentTarget.value;
-              const parsed = value === '' ? null : Number(value);
-              if (value === '' || (!isNaN(parsed) && parsed !== null && parsed >= 0)) {
-                handleSetZoomRange(spectrumUserParameters.minFrequencyHz, parsed);
-              }
-            }}
-            style={{ width: 70 }}
-            styles={{ input: { fontFamily: 'var(--font-mono)', fontSize: '0.72rem' } }}
-          />
-          {hasMultipleChannels && spectrumResult && (
-            <Group gap="sm">
-              {spectrumResult.channels.map((ch) => (
-                <Checkbox
-                  key={ch.channelId}
-                  size="xs"
-                  label={ch.channelName}
-                  checked={!hiddenChannelIds.has(ch.channelId)}
-                  onChange={() => toggleChannel(ch.channelId)}
-                />
-              ))}
-            </Group>
-          )}
         </Group>
         <Group gap={2}>
           {visibleChannels.length > 0 && (
@@ -222,6 +200,9 @@ export const SpectrumPanel = ({
               Explain this spectrum →
             </button>
           )}
+          <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => setIsSettingsOpen((value) => !value)} aria-label={isSettingsOpen ? 'Close settings' : 'Open settings'}>
+            <IconSettings size={13} />
+          </ActionIcon>
           <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => onToggleSpan(panelId)} aria-label={isWide ? 'Restore panel width' : 'Widen panel to full width'}>
             {isWide ? <IconArrowsMinimize size={13} /> : <IconArrowsMaximize size={13} />}
           </ActionIcon>
@@ -239,6 +220,108 @@ export const SpectrumPanel = ({
           </ActionIcon>
         </Group>
       </div>
+
+      {isSettingsOpen && (
+        <div className={styles.settingsDrawer}>
+          <Group gap="md" p="sm" align="flex-start">
+            <div>
+              <Text size="xs" c="dimmed" mb={4}>FFT size</Text>
+              <Select
+                size="xs"
+                value={String(spectrumUserParameters.fftSize)}
+                data={FFT_SIZE_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
+                onChange={(val) => val && dispatch(spectrumSetParameters({ fftSize: Number(val) }))}
+                style={{ width: 90 }}
+                styles={{ input: { fontFamily: 'var(--font-mono)', fontSize: '0.72rem' } }}
+              />
+            </div>
+            <div>
+              <Text size="xs" c="dimmed" mb={4}>Window</Text>
+              <Select
+                size="xs"
+                value={spectrumUserParameters.windowType}
+                data={[
+                  { value: 'hann', label: 'Hann' },
+                  { value: 'hamming', label: 'Hamming' },
+                  { value: 'blackman', label: 'Blackman' },
+                  { value: 'rectangular', label: 'Rectangular' },
+                ]}
+                onChange={(val) => val && dispatch(spectrumSetParameters({ windowType: val as 'hann' | 'hamming' | 'blackman' | 'rectangular' }))}
+                style={{ width: 110 }}
+                styles={{ input: { fontFamily: 'var(--font-mono)', fontSize: '0.72rem' } }}
+              />
+            </div>
+            <div>
+              <Text size="xs" c="dimmed" mb={4}>Overlap</Text>
+              <Select
+                size="xs"
+                value={String(spectrumUserParameters.overlap)}
+                data={[
+                  { value: '0', label: '0%' },
+                  { value: '0.25', label: '25%' },
+                  { value: '0.5', label: '50%' },
+                  { value: '0.677', label: '67.7%' },
+                  { value: '0.75', label: '75%' },
+                  { value: '0.9', label: '90%' },
+                ]}
+                onChange={(val) => val && dispatch(spectrumSetParameters({ overlap: Number(val) }))}
+                style={{ width: 80 }}
+                styles={{ input: { fontFamily: 'var(--font-mono)', fontSize: '0.72rem' } }}
+              />
+            </div>
+            <div>
+              <Text size="xs" c="dimmed" mb={4}>Min Hz</Text>
+              <TextInput
+                size="xs"
+                placeholder="Min Hz"
+                value={spectrumUserParameters.minFrequencyHz ?? ''}
+                onChange={(event) => {
+                  const value = event.currentTarget.value;
+                  const parsed = value === '' ? null : Number(value);
+                  if (value === '' || (parsed !== null && !isNaN(parsed) && parsed >= 0)) {
+                    handleSetZoomRange(parsed, spectrumUserParameters.maxFrequencyHz);
+                  }
+                }}
+                style={{ width: 80 }}
+                styles={{ input: { fontFamily: 'var(--font-mono)', fontSize: '0.72rem' } }}
+              />
+            </div>
+            <div>
+              <Text size="xs" c="dimmed" mb={4}>Max Hz</Text>
+              <TextInput
+                size="xs"
+                placeholder="Max Hz"
+                value={spectrumUserParameters.maxFrequencyHz ?? ''}
+                onChange={(event) => {
+                  const value = event.currentTarget.value;
+                  const parsed = value === '' ? null : Number(value);
+                  if (value === '' || (parsed !== null && !isNaN(parsed) && parsed >= 0)) {
+                    handleSetZoomRange(spectrumUserParameters.minFrequencyHz, parsed);
+                  }
+                }}
+                style={{ width: 80 }}
+                styles={{ input: { fontFamily: 'var(--font-mono)', fontSize: '0.72rem' } }}
+              />
+            </div>
+            {hasMultipleChannels && spectrumResult && (
+              <div>
+                <Text size="xs" c="dimmed" mb={4}>Channels</Text>
+                <Group gap="sm">
+                  {spectrumResult.channels.map((ch) => (
+                    <Checkbox
+                      key={ch.channelId}
+                      size="xs"
+                      label={ch.channelName}
+                      checked={!hiddenChannelIds.has(ch.channelId)}
+                      onChange={() => toggleChannel(ch.channelId)}
+                    />
+                  ))}
+                </Group>
+              </div>
+            )}
+          </Group>
+        </div>
+      )}
 
       {!isCollapsed && <div className={styles.panelBody}>
         {!effectiveFileId && (

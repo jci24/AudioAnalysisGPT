@@ -20,11 +20,13 @@ const emptyState: RootState = {
   waveformSelection: {
     activeSelection: null,
     loopEnabled: false,
+    showDisplay: true,
   },
   analysis: {
     result: null,
     status: 'idle',
     error: null,
+    showInspector: false,
   },
   spectrum: {
     result: null,
@@ -32,7 +34,7 @@ const emptyState: RootState = {
     error: null,
     activeRequestId: null,
     selectedChannelId: null,
-    userParameters: { fftSize: 2048, windowType: 'hann' as const, overlap: 0.677, format: 'msgpack' as const },
+    userParameters: { fftSize: 2048, windowType: 'hann' as const, overlap: 0.677, format: 'msgpack' as const, minFrequencyHz: 20, maxFrequencyHz: 20000 },
   },
   spectrogram: {
     result: null,
@@ -74,6 +76,7 @@ const emptyState: RootState = {
     result: null,
     status: 'idle',
     error: null,
+    showPanel: false,
   },
   agentAsk: {
     status: 'idle',
@@ -85,6 +88,7 @@ const emptyState: RootState = {
     status: 'idle',
     error: null,
     isPanelOpen: false,
+    showModal: false,
   },
 };
 
@@ -119,6 +123,7 @@ const stateWithFileAndSelection: RootState = {
       endSeconds: 1.5,
     },
     loopEnabled: false,
+    showDisplay: true,
   },
 };
 

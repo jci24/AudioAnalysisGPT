@@ -9,7 +9,7 @@ export const FindingsOrchestrator = (): JSX.Element => {
   const selectedFileId = useAppSelector(selectedSignalIdSelector);
 
   if (!showPanel || !selectedFileId) {
-    return null;
+    return <></>;
   }
 
   return <FindingsPanel fileId={selectedFileId} onClose={() => {}} />;

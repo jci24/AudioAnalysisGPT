@@ -258,3 +258,11 @@
     background: rgba(0, 184, 169, 0.2);
   }
 }
+
+.settingsDrawer {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background-color: var(--bg-elevated);
+}

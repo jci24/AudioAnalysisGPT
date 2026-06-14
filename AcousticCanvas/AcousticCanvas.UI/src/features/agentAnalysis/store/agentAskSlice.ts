@@ -1,6 +1,6 @@
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
-import type { AgentAskResponse, AgentToolExecutionRecord } from './services/agentAskService';
+import type { AgentAskResponse, AgentToolExecutionRecord } from '../services/agentAskService';
 
 export type AgentAskStatus = 'idle' | 'analyzing' | 'done' | 'error';
 

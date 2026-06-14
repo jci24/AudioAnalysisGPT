@@ -11,6 +11,8 @@ interface ISpectrumChannel {
   // Full label from backend e.g. 'Level [dB re 20 µPa]' or '[dBFS]'.
   // When present, used verbatim as the Y-axis title instead of the generic 'Magnitude [...]'.
   yAxisLabel?: string | null;
+  // Original index in the backend response for stable color assignment
+  originalIndex: number;
 }
 
 interface ITooltipState {
@@ -39,8 +41,21 @@ const LABEL_COLOR = 'rgba(0,0,0,0.6)';
 const FONT = '10px ui-monospace, SFMono-Regular, Menlo, monospace';
 const AXIS_LINE_WIDTH = 1;
 
-// Colors for different channels
-const CHANNEL_COLORS = ['#00b8a9', '#e05252', '#4dabf7', '#fab005'];
+// Colors for different channels - expanded palette for multi-channel recordings
+const CHANNEL_COLORS = [
+  '#00b8a9', // teal
+  '#e05252', // red
+  '#4dabf7', // blue
+  '#fab005', // yellow
+  '#be4bdb', // purple
+  '#20c997', // green
+  '#ff6b6b', // coral
+  '#748ffc', // indigo
+  '#ff922b', // orange
+  '#e64980', // pink
+  '#1098ad', // cyan
+  '#5c7cfa', // violet
+];
 const LINKED_CURSOR_COLOR = 'rgba(0, 184, 169, 0.85)';
 
 function formatHz(hz: number): string {
@@ -189,9 +204,9 @@ function drawSpectrum(
   ctx.clip();
 
   // Draw each channel's spectrum line from [x, y] points.
-  channels.forEach((channel, index) => {
+  channels.forEach((channel) => {
     ctx.beginPath();
-    ctx.strokeStyle = CHANNEL_COLORS[index % CHANNEL_COLORS.length];
+    ctx.strokeStyle = CHANNEL_COLORS[channel.originalIndex % CHANNEL_COLORS.length];
     ctx.lineWidth = 1.5;
 
     let started = false;
@@ -223,9 +238,9 @@ function drawSpectrum(
   if (channels.length > 1) {
     const legendX = MARGIN.left + plotWidth - 10;
     const legendY = MARGIN.top + 10;
-    channels.forEach((channel, index) => {
-      const y = legendY + index * 14;
-      ctx.strokeStyle = CHANNEL_COLORS[index % CHANNEL_COLORS.length];
+    channels.forEach((channel) => {
+      const y = legendY + channel.originalIndex * 14;
+      ctx.strokeStyle = CHANNEL_COLORS[channel.originalIndex % CHANNEL_COLORS.length];
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(legendX - 50, y);

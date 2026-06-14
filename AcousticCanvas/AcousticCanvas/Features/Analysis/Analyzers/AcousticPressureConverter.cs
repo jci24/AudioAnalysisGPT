@@ -98,6 +98,16 @@ public static class AcousticPressureConverter
         return (byte)Math.Round(normalized * 255.0);
     }
 
+    /// <summary>
+    /// Maps a display intensity byte [0, 255] back to a dB SPL value using the same range.
+    /// Inverse of MapDbSplToByte.
+    /// </summary>
+    public static double MapByteToDbSpl(byte byteValue, double minDbSpl, double maxDbSpl)
+    {
+        var normalized = byteValue / 255.0;
+        return minDbSpl + normalized * (maxDbSpl - minDbSpl);
+    }
+
     // -------------------------------------------------------------------------
     // Label / metadata helpers
     // -------------------------------------------------------------------------

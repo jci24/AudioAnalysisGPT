@@ -16,7 +16,7 @@ public class RunFindingsHandler(SignalAnalysisService analysisService)
         "transient",
         "loudest",
     ];
-    private const int FindingsSpectrumFftSize = 8192;
+    private const int FindingsSpectrumFftSize = 44100;
     private const double FindingsSpectrumOverlap = 0.5;
 
     public override async Task<FindingsResult> ExecuteAsync(

@@ -1,5 +1,8 @@
+using MessagePack;
+
 namespace AcousticCanvas.Features.Analysis.Domain;
 
+[MessagePackObject(keyAsPropertyName: true)]
 public sealed class SpectrogramAxisTick
 {
     public required double PositionPercent { get; init; }

@@ -66,7 +66,7 @@ export const SpectrumCard = ({
           onChange={(event) => {
             const value = event.currentTarget.value;
             const parsed = value === '' ? null : Number(value);
-            if (value === '' || (!isNaN(parsed) && parsed !== null && parsed >= 0)) {
+            if (value === '' || (parsed !== null && !isNaN(parsed) && parsed >= 0)) {
               onSetZoomRange(parsed, userParameters.maxFrequencyHz);
             }
           }}
@@ -80,7 +80,7 @@ export const SpectrumCard = ({
           onChange={(event) => {
             const value = event.currentTarget.value;
             const parsed = value === '' ? null : Number(value);
-            if (value === '' || (!isNaN(parsed) && parsed !== null && parsed >= 0)) {
+            if (value === '' || (parsed !== null && !isNaN(parsed) && parsed >= 0)) {
               onSetZoomRange(userParameters.minFrequencyHz, parsed);
             }
           }}
@@ -260,12 +260,13 @@ export const SpectrumCard = ({
           {showCanvas && result.channels.length > 0 && (
             <div className={styles.canvasWrapper}>
               <SpectrumCanvas
-                channels={result.channels.map((ch) => ({
+                channels={result.channels.map((ch, index) => ({
                   channelId: ch.channelId,
                   channelName: ch.channelName,
                   points: ch.points,
                   yUnit: ch.yUnit,
                   yAxisLabel: ch.yAxisLabel,
+                  originalIndex: index,
                 }))}
                 minFrequencyHz={userParameters.minFrequencyHz}
                 maxFrequencyHz={userParameters.maxFrequencyHz}

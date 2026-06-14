@@ -1,16 +1,16 @@
 .barChart {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 20px 14px 16px;
+  gap: 12px;
+  padding: 12px 10px 8px;
   flex: 1;
 }
 
 .barRow {
   display: grid;
-  grid-template-columns: 86px 1fr auto;
+  grid-template-columns: 80px 1fr auto;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .barRowLabel {

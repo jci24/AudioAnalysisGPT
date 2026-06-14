@@ -37,13 +37,13 @@ interface IWaveSurferDisplayProps {
   displayRef?: React.MutableRefObject<WaveSurferDisplayRef | null>;
 }
 
-// Draws the FS y-axis: ticks align with actual waveform peak positions.
+// Draws the Pa y-axis: ticks align with actual waveform peak positions.
 // WaveSurfer centers 0 and scales amplitude to fit with padding.
-function drawFsYAxis(
+function drawPaYAxis(
   canvas: HTMLCanvasElement,
   canvasHeight: number,
-  globalMaxFs: number,
-  globalMinFs: number,
+  globalMaxPa: number,
+  globalMinPa: number,
 ): void {
   const context = canvas.getContext('2d');
   if (!context) {
@@ -71,13 +71,13 @@ function drawFsYAxis(
   const centerY = canvasHeight / 2;
 
   // Find the max absolute amplitude to determine scaling
-  const maxAbsAmplitude = Math.max(Math.abs(globalMaxFs), Math.abs(globalMinFs));
+  const maxAbsAmplitude = Math.max(Math.abs(globalMaxPa), Math.abs(globalMinPa));
 
   // Calculate pixel positions where ticks should align with waveform peaks
   // Positive peak position (above center)
-  const topY = centerY - (globalMaxFs / maxAbsAmplitude) * (usableHeight / 2);
+  const topY = centerY - (globalMaxPa / maxAbsAmplitude) * (usableHeight / 2);
   // Negative peak position (below center)
-  const bottomY = centerY - (globalMinFs / maxAbsAmplitude) * (usableHeight / 2);
+  const bottomY = centerY - (globalMinPa / maxAbsAmplitude) * (usableHeight / 2);
 
   // Top tick — positive peak (+max)
   context.strokeStyle = AXIS_LINE_COLOR;
@@ -87,9 +87,9 @@ function drawFsYAxis(
   context.stroke();
   context.fillStyle = LABEL_COLOR;
   context.textBaseline = 'middle';
-  context.fillText(`+${globalMaxFs.toFixed(3)}`, tickX, topY);
+  context.fillText(`+${globalMaxPa.toFixed(3)}`, tickX, topY);
 
-  // Middle tick — 0 FS (center line, no label)
+  // Middle tick — 0 Pa (center line, no label)
   context.strokeStyle = AXIS_LINE_COLOR;
   context.beginPath();
   context.moveTo(lineStartX, centerY);
@@ -104,7 +104,7 @@ function drawFsYAxis(
   context.stroke();
   context.fillStyle = LABEL_COLOR;
   context.textBaseline = 'middle';
-  context.fillText(`${globalMinFs.toFixed(3)}`, tickX, bottomY);
+  context.fillText(`${globalMinPa.toFixed(3)}`, tickX, bottomY);
 
   // Vertical axis line
   context.strokeStyle = AXIS_LINE_COLOR;
@@ -114,14 +114,14 @@ function drawFsYAxis(
   context.lineTo(canvasWidth, canvasHeight);
   context.stroke();
 
-  // Rotated "FS" unit label
+  // Rotated "Pa" unit label
   context.save();
   context.translate(FONT_SIZE + 2, canvasHeight / 2);
   context.rotate(-Math.PI / 2);
   context.textAlign = 'center';
   context.textBaseline = 'middle';
   context.fillStyle = UNIT_LABEL_COLOR;
-  context.fillText('FS', 0, 0);
+  context.fillText('Pa', 0, 0);
   context.restore();
 }
 
@@ -248,7 +248,7 @@ export const WaveSurferDisplay = ({
     }
     canvas.width = Y_AXIS_WIDTH;
     canvas.height = containerHeight;
-    drawFsYAxis(canvas, containerHeight, waveformData.globalMaxFs, waveformData.globalMinFs);
+    drawPaYAxis(canvas, containerHeight, waveformData.globalMaxPa, waveformData.globalMinPa);
   }, [containerHeight, waveformData]);
 
   // Update displayRef with imperative region methods when regions are ready

@@ -12,7 +12,7 @@ export const WaveformOrchestrator = (): JSX.Element => {
   const waveSurferRef = useRef<WaveSurferDisplayRef | null>(null);
 
   if (!showDisplay || !selectedFileId) {
-    return null;
+    return <></>;
   }
 
   return (

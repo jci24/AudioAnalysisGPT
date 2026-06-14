@@ -1,7 +1,7 @@
 import type { JSX } from 'react';
 import { useEffect, useState } from 'react';
 import { ActionIcon, Badge, Button, Group, Loader, Select, Text, Tooltip } from '@mantine/core';
-import { IconArrowsMaximize, IconArrowsMinimize, IconChartBar, IconChevronDown, IconChevronRight, IconSparkles, IconX } from '@tabler/icons-react';
+import { IconArrowsMaximize, IconArrowsMinimize, IconChartBar, IconChevronDown, IconChevronRight, IconInfoCircle, IconSparkles, IconX } from '@tabler/icons-react';
 import { useAppSelector } from '../../../store/reduxHooks';
 import { activeSelectionSelector } from '../../waveform/store/waveformSelectionSlice';
 import { useRunSoundQuality } from '../hooks/useRunSoundQuality';
@@ -46,9 +46,10 @@ export const SoundQualityPanel = ({
   onToggleSpan,
 }: ISoundQualityPanelProps): JSX.Element => {
   const activeSelection = useAppSelector(activeSelectionSelector);
-  const { result, isRunning, error, runSoundQuality } = useRunSoundQuality();
+  const { result, isRunning, error, runSoundQuality, resetSoundQuality } = useRunSoundQuality();
   const { runSoundQualitySummary } = useSoundQualitySummary();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isInfoCollapsed, setIsInfoCollapsed] = useState(false);
   const [summary, setSummary] = useState<SoundQualitySummaryResult | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
@@ -67,8 +68,14 @@ export const SoundQualityPanel = ({
     }
   }, [effectiveFileId, onFileSelect, panelId, selectedFileId]);
 
+  // Clear data when file changes to prevent showing stale data from previous file.
+  useEffect(() => {
+    resetSoundQuality();
+  }, [effectiveFileId, resetSoundQuality]);
+
   useEffect(() => {
     if (!effectiveFileId || !selectedFile) return;
+    if (isCollapsed) return;
     const timeoutId = window.setTimeout(() => {
       runSoundQuality({
         fileId: effectiveFileId,
@@ -77,10 +84,11 @@ export const SoundQualityPanel = ({
       });
     }, 180);
     return () => window.clearTimeout(timeoutId);
-  }, [effectiveFileId, selectedFile, hasRegion, regionStartSeconds, regionEndSeconds, runSoundQuality]);
+  }, [effectiveFileId, selectedFile, hasRegion, regionStartSeconds, regionEndSeconds, runSoundQuality, isCollapsed]);
 
   useEffect(() => {
     if (!effectiveFileId || !selectedFile) return;
+    if (isCollapsed) return;
     if (result) return;
     const timeoutId = window.setTimeout(() => {
       runSoundQuality({
@@ -90,7 +98,14 @@ export const SoundQualityPanel = ({
       });
     }, 200);
     return () => window.clearTimeout(timeoutId);
-  }, [effectiveFileId, selectedFile, hasRegion, regionStartSeconds, regionEndSeconds, runSoundQuality, result]);
+  }, [effectiveFileId, selectedFile, hasRegion, regionStartSeconds, regionEndSeconds, runSoundQuality, result, isCollapsed]);
+
+  // Clear data when panel collapses to free memory.
+  useEffect(() => {
+    if (isCollapsed) {
+      resetSoundQuality();
+    }
+  }, [isCollapsed, resetSoundQuality]);
 
   useEffect(() => {
     if (!effectiveFileId || !result) return;
@@ -205,16 +220,29 @@ export const SoundQualityPanel = ({
               ))}
             </div>
             <SoundQualitySummary summary={summary} isLoading={summaryLoading} error={summaryError} />
-            <div className={styles.summary}>
-              <span>
-                Method <span className={styles.summaryValue}>{result.parameters.method}</span>
-              </span>
-              {result.parameters.limitations.map((limitation) => (
-                <span key={limitation}>
-                  Note <span className={styles.summaryValue}>{limitation}</span>
-                </span>
-              ))}
+            <div className={styles.summaryHeader}>
+              <ActionIcon
+                variant="subtle"
+                color="gray"
+                size="sm"
+                onClick={() => setIsInfoCollapsed((value) => !value)}
+                aria-label={isInfoCollapsed ? 'Show analysis details' : 'Hide analysis details'}
+              >
+                <IconInfoCircle size={13} />
+              </ActionIcon>
             </div>
+            {!isInfoCollapsed && (
+              <div className={styles.summary}>
+                <span>
+                  Method <span className={styles.summaryValue}>{result.parameters.method}</span>
+                </span>
+                {result.parameters.limitations.map((limitation) => (
+                  <span key={limitation}>
+                    Note <span className={styles.summaryValue}>{limitation}</span>
+                  </span>
+                ))}
+              </div>
+            )}
           </>
         )}
       </div>

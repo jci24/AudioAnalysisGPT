@@ -78,3 +78,20 @@
 .chartWrap {
   position: relative;
 }
+
+.summaryHeader {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 4px 8px;
+  border-top: 1px solid var(--border);
+  background-color: var(--bg-surface);
+}
+
+.settingsDrawer {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background-color: var(--bg-elevated);
+}

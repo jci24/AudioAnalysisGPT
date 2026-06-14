@@ -8,7 +8,7 @@ namespace AcousticCanvas.Features.Analysis.Handlers;
 public class RunAgentAnalysisHandler(SignalAnalysisService analysisService)
     : CommandHandler<RunAgentAnalysisCommand, AgentAnalysisResult>
 {
-    private const int DefaultFftSize = 8192;
+    private const int DefaultFftSize = 44100;
     private const double DefaultOverlap = 0.677;
 
     public override async Task<AgentAnalysisResult> ExecuteAsync(

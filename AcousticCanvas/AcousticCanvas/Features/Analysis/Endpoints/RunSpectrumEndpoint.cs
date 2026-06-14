@@ -79,7 +79,7 @@ public class RunSpectrumRequest
     public string FileId { get; set; } = string.Empty;
     public double StartSeconds { get; set; }
     public double EndSeconds { get; set; }
-    public int FftSize { get; set; } = 8192;
+    public int FftSize { get; set; } = 44100;
     public double Overlap { get; set; } = 0.677;
     public string WindowType { get; set; } = "hann";
     public string Format { get; set; } = "json";

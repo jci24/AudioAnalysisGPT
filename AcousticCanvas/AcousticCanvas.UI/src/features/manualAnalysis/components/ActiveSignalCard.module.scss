@@ -63,18 +63,34 @@
 }
 
 // Responsive tile grid for analysis panels below the pinned waveform.
-// Collapses from 2 columns to 1 when the center area gets narrow.
+// Dynamically adjusts columns based on available space.
 .analysisGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-  gap: 12px;
-  padding: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  gap: 8px;
+  padding: 8px;
   border-top: 1px solid var(--border);
   align-items: start;
 
   // No analysis panels open — don't reserve any space.
   &:empty {
     display: none;
+  }
+
+  // Adjust for wider screens - allow more columns
+  @media (min-width: 1400px) {
+    grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+  }
+
+  @media (min-width: 1800px) {
+    grid-template-columns: repeat(auto-fit, minmax(min(350px, 100%), 1fr));
+  }
+
+  // Adjust for narrower screens - reduce minimum size
+  @media (max-width: 900px) {
+    grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+    gap: 6px;
+    padding: 6px;
   }
 }
 

@@ -168,6 +168,9 @@ export const ManualWorkspace = (): JSX.Element => {
 
   const handleAddSpectrumPanelForActiveFile = (): void => {
     handleAddSpectrumPanel(selectedSignalId);
+    if (!activeSelection && duration > 0) {
+      waveSurferRef.current?.setSelection(0, duration);
+    }
   };
 
   const handleAddCpbPanelForActiveFile = (): void => {

@@ -123,4 +123,5 @@ export const FFT_SIZE_OPTIONS = [
   { value: '4096', label: '4096' },
   { value: '8192', label: '8192' },
   { value: '16384', label: '16384' },
+  { value: '44100', label: '44100' },
 ] as const;

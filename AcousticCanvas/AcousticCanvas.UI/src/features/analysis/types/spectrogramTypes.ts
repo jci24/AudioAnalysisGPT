@@ -60,7 +60,7 @@ export type SpectrogramUserParameters = {
 export type SpectrogramScale = 'mel' | 'linear' | 'logarithmic';
 
 export const DEFAULT_SPECTROGRAM_PARAMS: SpectrogramUserParameters = {
-  fftSize: 2048,
+  fftSize: 44100,
   overlap: 0.75,
   scale: 'mel',
   gainDb: 20,
@@ -77,6 +77,7 @@ export const SPECTROGRAM_FFT_SIZE_OPTIONS = [
   { value: '2048', label: '1024 lines' },
   { value: '4096', label: '2048 lines' },
   { value: '8192', label: '4096 lines' },
+  { value: '44100', label: '22050 lines' },
 ] as const;
 
 export const SPECTROGRAM_SCALE_OPTIONS = [

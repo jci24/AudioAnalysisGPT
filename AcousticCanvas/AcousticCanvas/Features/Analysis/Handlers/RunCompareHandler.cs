@@ -11,7 +11,7 @@ public class RunCompareHandler(
     SoundQualityAnalysisService soundQualityAnalysisService
 ) : CommandHandler<RunCompareCommand, CompareResult>
 {
-    private const int DefaultFftSize = 8192;
+    private const int DefaultFftSize = 44100;
     private const double DefaultOverlap = 0.5;
     private const string DefaultCpbBandMode = "third_octave";
 

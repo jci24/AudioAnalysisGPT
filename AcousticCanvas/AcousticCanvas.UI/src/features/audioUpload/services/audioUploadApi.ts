@@ -11,7 +11,7 @@ export interface WaveformResponse {
   durationSeconds: number;
   sampleRate: number;
   channels: number;
-  globalMinFs: number;
-  globalMaxFs: number;
+  globalMinPa: number;
+  globalMaxPa: number;
   peaks: number[];
 }

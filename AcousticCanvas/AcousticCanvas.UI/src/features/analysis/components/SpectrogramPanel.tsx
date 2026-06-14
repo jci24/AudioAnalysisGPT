@@ -1,7 +1,7 @@
 import type { JSX } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { Select, ActionIcon, Text, Group, Loader, Badge, Alert } from '@mantine/core';
-import { IconArrowsMaximize, IconArrowsMinimize, IconChevronDown, IconChevronRight, IconX, IconWaveSine, IconAlertTriangle } from '@tabler/icons-react';
+import { IconArrowsMaximize, IconArrowsMinimize, IconChevronDown, IconChevronRight, IconX, IconWaveSine, IconAlertTriangle, IconSettings } from '@tabler/icons-react';
 import { useAppDispatch, useAppSelector } from '../../../store/reduxHooks';
 import { useRunSpectrogram } from '../hooks/useRunSpectrogram';
 import {
@@ -10,6 +10,7 @@ import {
   spectrogramErrorSelector,
   spectrogramUserParametersSelector,
   spectrogramSetParameters,
+  spectrogramClear,
 } from '../store/spectrogramSlice';
 import { activeSelectionSelector } from '../../waveform/store/waveformSelectionSlice';
 import { cursorFrequencyHovered, cursorFrequencyCleared, cursorFrequencyHzSelector, cursorTimeHovered, cursorTimeCleared, cursorTimeSecondsSelector } from '../store/analysisCursorSlice';
@@ -265,6 +266,7 @@ export const SpectrogramPanel = ({
   const colorbarCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [hover, setHover] = useState<ISpectrogramHover | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [canvasHeight, setCanvasHeight] = useState(DEFAULT_CANVAS_HEIGHT);
   const effectiveFileId = selectedFileId ?? availableFiles[0]?.id ?? null;
   const selectedFile = availableFiles.find((file) => file.id === effectiveFileId);
@@ -281,9 +283,15 @@ export const SpectrogramPanel = ({
     }
   }, [effectiveFileId, onFileSelect, panelId, selectedFileId]);
 
-  // Auto-run when file or selection changes.
+  // Clear data when file changes to prevent showing stale data from previous file.
+  useEffect(() => {
+    dispatch(spectrogramClear());
+  }, [effectiveFileId, dispatch]);
+
+  // Auto-run when file or selection changes, but only if panel is expanded.
   useEffect(() => {
     if (!effectiveFileId || !selectedFile) return;
+    if (isCollapsed) return;
     const timeoutId = window.setTimeout(() => {
       runSpectrogram({
         fileId: effectiveFileId,
@@ -293,11 +301,12 @@ export const SpectrogramPanel = ({
       });
     }, 180);
     return () => window.clearTimeout(timeoutId);
-  }, [effectiveFileId, selectedFile, hasRegion, regionStartSeconds, regionEndSeconds, spectrogramUserParameters, runSpectrogram]);
+  }, [effectiveFileId, selectedFile, hasRegion, regionStartSeconds, regionEndSeconds, spectrogramUserParameters, runSpectrogram, isCollapsed]);
 
-  // Re-fetch on mount if no result exists
+  // Refetch when panel expands if no result exists.
   useEffect(() => {
     if (!effectiveFileId || !selectedFile) return;
+    if (isCollapsed) return;
     if (spectrogramResult) return;
     const timeoutId = window.setTimeout(() => {
       runSpectrogram({
@@ -308,7 +317,14 @@ export const SpectrogramPanel = ({
       });
     }, 200);
     return () => window.clearTimeout(timeoutId);
-  }, [effectiveFileId, selectedFile, hasRegion, regionStartSeconds, regionEndSeconds, spectrogramUserParameters, runSpectrogram, spectrogramResult]);
+  }, [effectiveFileId, selectedFile, hasRegion, regionStartSeconds, regionEndSeconds, spectrogramUserParameters, runSpectrogram, spectrogramResult, isCollapsed]);
+
+  // Clear data when panel collapses to free memory.
+  useEffect(() => {
+    if (isCollapsed) {
+      dispatch(spectrogramClear());
+    }
+  }, [isCollapsed, dispatch]);
 
   // Paint canvas when data arrives.
   useEffect(() => {
@@ -432,46 +448,12 @@ export const SpectrogramPanel = ({
               ? `${activeSelection!.startSeconds.toFixed(3)}s - ${activeSelection!.endSeconds.toFixed(3)}s`
               : 'Full file'}
           </Badge>
-          <Select
-            size="xs"
-            data={SPECTROGRAM_SCALE_OPTIONS}
-            value={spectrogramUserParameters.scale}
-            onChange={(value) => value && dispatch(spectrogramSetParameters({ scale: value as SpectrogramScale }))}
-            aria-label="Spectrogram frequency scale"
-            style={{ width: 88 }}
-            styles={{ input: { fontFamily: 'var(--font-mono)', fontSize: '0.72rem' } }}
-          />
-          <Select
-            size="xs"
-            data={SPECTROGRAM_FFT_SIZE_OPTIONS}
-            value={String(spectrogramUserParameters.fftSize)}
-            onChange={(value) => value && dispatch(spectrogramSetParameters({ fftSize: Number(value) }))}
-            aria-label="FFT lines (frequency resolution)"
-            title="FFT lines — higher = more frequency resolution, lower = more time resolution"
-            style={{ width: 102 }}
-            styles={{ input: { fontFamily: 'var(--font-mono)', fontSize: '0.72rem' } }}
-          />
-          <Select
-            size="xs"
-            data={SPECTROGRAM_RANGE_OPTIONS}
-            value={String(spectrogramUserParameters.rangeDb)}
-            onChange={(value) => value && dispatch(spectrogramSetParameters({ rangeDb: Number(value) }))}
-            aria-label="Spectrogram dynamic range"
-            style={{ width: 86 }}
-            styles={{ input: { fontFamily: 'var(--font-mono)', fontSize: '0.72rem' } }}
-          />
-          <Select
-            size="xs"
-            data={SPECTROGRAM_GAIN_OPTIONS}
-            value={String(spectrogramUserParameters.gainDb)}
-            onChange={(value) => value && dispatch(spectrogramSetParameters({ gainDb: Number(value) }))}
-            aria-label="Spectrogram gain"
-            style={{ width: 86 }}
-            styles={{ input: { fontFamily: 'var(--font-mono)', fontSize: '0.72rem' } }}
-          />
           {isRunning && <Loader size="xs" color="teal" />}
         </Group>
         <Group gap={2}>
+          <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => setIsSettingsOpen((value) => !value)} aria-label={isSettingsOpen ? 'Close settings' : 'Open settings'}>
+            <IconSettings size={13} />
+          </ActionIcon>
           <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => onToggleSpan(panelId)} aria-label={isWide ? 'Restore panel width' : 'Widen panel to full width'}>
             {isWide ? <IconArrowsMinimize size={13} /> : <IconArrowsMaximize size={13} />}
           </ActionIcon>
@@ -483,6 +465,62 @@ export const SpectrogramPanel = ({
           </ActionIcon>
         </Group>
       </div>
+
+      {isSettingsOpen && (
+        <div className={styles.settingsDrawer}>
+          <Group gap="md" p="sm">
+            <div>
+              <Text size="xs" c="dimmed" mb={4}>Scale</Text>
+              <Select
+                size="xs"
+                data={SPECTROGRAM_SCALE_OPTIONS}
+                value={spectrogramUserParameters.scale}
+                onChange={(value) => value && dispatch(spectrogramSetParameters({ scale: value as SpectrogramScale }))}
+                aria-label="Spectrogram frequency scale"
+                style={{ width: 120 }}
+                styles={{ input: { fontFamily: 'var(--font-mono)', fontSize: '0.72rem' } }}
+              />
+            </div>
+            <div>
+              <Text size="xs" c="dimmed" mb={4}>FFT Size</Text>
+              <Select
+                size="xs"
+                data={SPECTROGRAM_FFT_SIZE_OPTIONS}
+                value={String(spectrogramUserParameters.fftSize)}
+                onChange={(value) => value && dispatch(spectrogramSetParameters({ fftSize: Number(value) }))}
+                aria-label="FFT lines (frequency resolution)"
+                title="FFT lines — higher = more frequency resolution, lower = more time resolution"
+                style={{ width: 120 }}
+                styles={{ input: { fontFamily: 'var(--font-mono)', fontSize: '0.72rem' } }}
+              />
+            </div>
+            <div>
+              <Text size="xs" c="dimmed" mb={4}>Range (dB)</Text>
+              <Select
+                size="xs"
+                data={SPECTROGRAM_RANGE_OPTIONS}
+                value={String(spectrogramUserParameters.rangeDb)}
+                onChange={(value) => value && dispatch(spectrogramSetParameters({ rangeDb: Number(value) }))}
+                aria-label="Spectrogram dynamic range"
+                style={{ width: 100 }}
+                styles={{ input: { fontFamily: 'var(--font-mono)', fontSize: '0.72rem' } }}
+              />
+            </div>
+            <div>
+              <Text size="xs" c="dimmed" mb={4}>Gain (dB)</Text>
+              <Select
+                size="xs"
+                data={SPECTROGRAM_GAIN_OPTIONS}
+                value={String(spectrogramUserParameters.gainDb)}
+                onChange={(value) => value && dispatch(spectrogramSetParameters({ gainDb: Number(value) }))}
+                aria-label="Spectrogram gain"
+                style={{ width: 100 }}
+                styles={{ input: { fontFamily: 'var(--font-mono)', fontSize: '0.72rem' } }}
+              />
+            </div>
+          </Group>
+        </div>
+      )}
 
       <div className={styles.panelBody} style={{ display: isCollapsed ? 'none' : undefined }}>
         {!effectiveFileId && (

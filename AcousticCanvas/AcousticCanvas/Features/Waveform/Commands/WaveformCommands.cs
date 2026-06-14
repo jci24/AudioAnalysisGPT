@@ -8,7 +8,7 @@ public record WaveformResult(
     double DurationSeconds,
     int SampleRate,
     int Channels,
-    double GlobalMinFs,
-    double GlobalMaxFs,
+    double GlobalMinPa,
+    double GlobalMaxPa,
     float[] Peaks
 );

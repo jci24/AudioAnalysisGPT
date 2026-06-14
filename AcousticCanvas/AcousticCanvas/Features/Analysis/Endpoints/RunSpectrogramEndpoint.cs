@@ -2,6 +2,7 @@ using AcousticCanvas.Features.Analysis.Commands;
 using AcousticCanvas.Features.Analysis.Domain;
 using AcousticCanvas.Features.AudioUpload.Services;
 using FastEndpoints;
+using MessagePack;
 
 namespace AcousticCanvas.Features.Analysis.Endpoints;
 
@@ -42,7 +43,20 @@ public class RunSpectrogramEndpoint(AudioFileRepository audioFileRepository)
 
         try
         {
-            Response = await query.ExecuteAsync(cancellationToken);
+            var result = await query.ExecuteAsync(cancellationToken);
+
+            if (string.Equals(request.Format, "msgpack", StringComparison.OrdinalIgnoreCase))
+            {
+                var pointsResponse = SpectrogramPointsMapper.ToPointsResponse(result);
+                var bytes = MessagePackSerializer.Serialize(pointsResponse);
+                HttpContext.Response.ContentType = "application/x-msgpack";
+                HttpContext.Response.StatusCode = 200;
+                await HttpContext.Response.Body.WriteAsync(bytes, cancellationToken);
+                await HttpContext.Response.CompleteAsync();
+                return;
+            }
+
+            Response = result;
         }
         catch (Exception ex)
         {
@@ -60,11 +74,12 @@ public class RunSpectrogramRequest
     public string FileId { get; set; } = string.Empty;
     public double StartSeconds { get; set; }
     public double EndSeconds { get; set; }
-    public int FftSize { get; set; } = 2048;
+    public int FftSize { get; set; } = 44100;
     public double Overlap { get; set; } = 0.75;
     public string Scale { get; set; } = "mel";
     public double GainDb { get; set; } = 20.0;
     public double RangeDb { get; set; } = 80.0;
     public double MinDbSpl { get; set; } = -68.0;
     public double MaxDbSpl { get; set; } = 55.0;
+    public string Format { get; set; } = "json";
 }

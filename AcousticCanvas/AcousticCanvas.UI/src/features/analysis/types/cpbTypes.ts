@@ -63,7 +63,7 @@ export type CpbUserParameters = {
 
 export const DEFAULT_CPB_PARAMS: CpbUserParameters = {
   bandMode: 'third_octave',
-  fftSize: 8192,
+  fftSize: 44100,
   overlap: 0.5,
   weighting: 'z',
   method: 'fft_bin_power_sum',
@@ -89,4 +89,5 @@ export const CPB_FFT_SIZE_OPTIONS = [
   { value: '4096', label: '4096' },
   { value: '8192', label: '8192' },
   { value: '16384', label: '16384' },
+  { value: '44100', label: '44100' },
 ] as const;

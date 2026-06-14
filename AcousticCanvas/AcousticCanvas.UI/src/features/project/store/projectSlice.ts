@@ -1,6 +1,6 @@
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
-import type { ProjectStatus, AudioFile, AudioFileId, Marker, VisibleView } from '../../store/projectState';
+import type { ProjectStatus, AudioFile, AudioFileId, Marker, VisibleView } from '../../../store/projectState';
 
 const PROJECT_SLICE_NAME = 'project';
 
