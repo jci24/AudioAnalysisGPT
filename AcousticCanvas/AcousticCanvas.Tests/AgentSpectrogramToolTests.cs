@@ -81,7 +81,8 @@ public sealed class AgentSpectrogramToolTests
             audioFileRepository,
             soundQualityService,
             importers,
-            new SpectrogramCacheStore());
+            new SpectrogramCacheStore(),
+            new AnalysisResultCache());
 
         var toolOutput = await toolExecutionService.ExecuteToolAsync(
             new PlannerToolRequest

@@ -68,6 +68,11 @@ const emptyState: RootState = {
       method: 'fft_bin_power_sum',
     },
   },
+  analysisResults: {
+    resultsById: {},
+    loadingIds: {},
+    errorById: {},
+  },
   analysisCursor: {
     hoverFrequencyHz: null,
     hoverTimeSeconds: null,

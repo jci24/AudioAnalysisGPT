@@ -59,7 +59,9 @@ public sealed class AgentBehaviorEvalTests
             throw new InvalidOperationException($"Unknown expected route '{evalCase.ExpectedRoute}'.");
         }
 
-        var finalPrompt = AgentPromptBuilder.BuildFinalAnswerSystemPrompt();
+        var finalPrompt = evalCase.FinalAnswerMustContainBlocks
+            ? AgentPromptBuilder.BuildFinalAnswerSystemPromptWithBlocks()
+            : AgentPromptBuilder.BuildFinalAnswerSystemPrompt();
         foreach (var expectedText in evalCase.FinalPromptMustContain)
         {
             Assert.Contains(expectedText, finalPrompt, StringComparison.OrdinalIgnoreCase);
@@ -140,4 +142,7 @@ public sealed record AgentBehaviorEvalCase
 
     [JsonPropertyName("noToolAnswerMustContain")]
     public IReadOnlyList<string> NoToolAnswerMustContain { get; init; } = [];
+
+    [JsonPropertyName("finalAnswerMustContainBlocks")]
+    public bool FinalAnswerMustContainBlocks { get; init; }
 }
